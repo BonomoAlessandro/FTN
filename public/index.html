@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0e3b2e">
+  <title>Stichraten</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Start -->
+  <section id="screen-start" class="screen">
+    <h1 class="logo">Stichraten</h1>
+    <p class="tagline">Das Jasskarten-Spiel für 3–7 Spieler</p>
+    <input id="input-name" type="text" maxlength="16" placeholder="Dein Name" autocomplete="off">
+    <button id="btn-create" class="btn primary">Raum erstellen</button>
+    <div class="join-row">
+      <input id="input-code" type="text" maxlength="4" placeholder="CODE" autocomplete="off" autocapitalize="characters">
+      <button id="btn-join" class="btn">Beitreten</button>
+    </div>
+    <button id="btn-rules" class="btn ghost">📖 Spielanleitung</button>
+  </section>
+
+  <!-- Lobby -->
+  <section id="screen-lobby" class="screen hidden">
+    <h2>Raum-Code</h2>
+    <div id="lobby-code" class="room-code"></div>
+    <p class="hint">Deine Freunde öffnen dieselbe Adresse und treten mit diesem Code bei.</p>
+    <ul id="lobby-players" class="player-list"></ul>
+    <div id="lobby-action"></div>
+    <button id="btn-leave" class="btn ghost small">Raum verlassen</button>
+  </section>
+
+  <!-- Spiel -->
+  <section id="screen-game" class="screen hidden">
+    <header id="game-header"></header>
+    <div id="players-bar"></div>
+    <main id="table-area"></main>
+    <div id="status"></div>
+    <div id="action-area"></div>
+    <footer id="hand-area"></footer>
+  </section>
+
+  <!-- Ereignis-Overlay (Stich gewonnen, Duell, Ziehen) -->
+  <div id="overlay" class="hidden"><div id="overlay-content"></div></div>
+
+  <!-- Toast für Fehlermeldungen -->
+  <div id="toast" class="hidden"></div>
+
+  <!-- Spielanleitung -->
+  <dialog id="rules-dialog">
+    <article>
+      <h2>Spielanleitung «Stichraten»</h2>
+      <h3>Karten</h3>
+      <p>36 Jasskarten. Nur der <b>Wert</b> zählt, die Farbe ist egal:<br>
+      <b>6 &lt; 7 &lt; 8 &lt; 9 &lt; Banner &lt; Under &lt; Ober &lt; König &lt; Ass</b><br>
+      Kein Trumpf, kein Bedienzwang. Jeder Wert existiert 4× – Gleichstände sind möglich.</p>
+      <h3>Ablauf</h3>
+      <p>10 Runden mit <b>5 → 4 → 3 → 2 → 1 → 1 → 2 → 3 → 4 → 5</b> Karten.
+      Jede Runde: <b>Ansagen → Stiche spielen → Punkte werten</b>. Der Startspieler wechselt jede Runde.</p>
+      <h3>Ansagen</h3>
+      <p>Jeder sagt reihum an, wie viele Stiche er macht.</p>
+      <ul>
+        <li><b>Die Summe darf nicht aufgehen:</b> Die Summe aller Ansagen darf nicht gleich der Stichzahl sein – der letzte Ansager ist eingeschränkt. <i>(Ausnahme: 1er-Runden.)</i></li>
+        <li><b>Max. 2× dieselbe Zahl nacheinander:</b> Wer zweimal hintereinander dieselbe Zahl angesagt hat, muss etwas anderes ansagen. Danach ist die Zahl wieder frei.</li>
+      </ul>
+      <h3>Stiche</h3>
+      <p>Reihum eine Karte spielen – die höchste gewinnt. Der Gewinner spielt aus.</p>
+      <p><b>Stich-Duell:</b> Bei Gleichstand der höchsten Karte spielen die Beteiligten gleichzeitig verdeckt eine weitere Karte – der Gewinner erhält <b>beide</b> Stiche. Alle Unbeteiligten werfen eine Karte ab. Bei erneutem Gleichstand wird wiederholt (3, 4, … Stiche).</p>
+      <p><b>Letzter Stich:</b> Bei Gleichstand ohne Handkarten ziehen die Beteiligten zufällig eine neue Karte – die höhere gewinnt.</p>
+      <h3>Punkte</h3>
+      <ul>
+        <li><b>Ansage korrekt:</b> 10 + Stiche² (0&nbsp;→&nbsp;10, 1&nbsp;→&nbsp;11, 2&nbsp;→&nbsp;14, 3&nbsp;→&nbsp;19, 4&nbsp;→&nbsp;26, 5&nbsp;→&nbsp;35)</li>
+        <li><b>Ansage falsch:</b> −5 Punkte pro Stich Abweichung</li>
+      </ul>
+      <h3>Blindrunden (Runde 5 + 6)</h3>
+      <p>Du siehst nur die Karten der <b>anderen</b>, nicht deine eigene. Sage 0 oder 1 an.
+      Einzige Runden, in denen die Summe aufgehen darf.</p>
+      <h3>Spielende</h3>
+      <p>Nach Runde 10 gewinnt, wer die meisten Punkte hat.</p>
+      <button class="btn primary" onclick="document.getElementById('rules-dialog').close()">Schliessen</button>
+    </article>
+  </dialog>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
