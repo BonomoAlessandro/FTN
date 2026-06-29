@@ -64,6 +64,7 @@ input[type="text"] {
 .btn.primary { background: var(--gold); color: #3a2e08; }
 .btn.ghost { background: transparent; border: 1px solid var(--felt-light); }
 .btn.small { max-width: 200px; padding: 8px 14px; font-size: 0.9rem; }
+.btn.danger { background: #b3402f; color: #fff; }
 .btn:disabled { opacity: 0.4; }
 .join-row .btn { width: auto; }
 
@@ -105,6 +106,8 @@ input[type="text"] {
   font-size: 0.9rem;
 }
 #game-header .round { font-weight: 700; color: var(--gold); }
+#game-header .header-right { display: flex; align-items: center; gap: 10px; }
+#game-header .btn { width: auto; padding: 6px 12px; font-size: 1.05rem; }
 #game-header .blind-badge {
   background: #6c3fa0; color: #fff;
   padding: 2px 8px; border-radius: 8px; font-size: 0.75rem; font-weight: 700;

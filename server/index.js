@@ -162,6 +162,24 @@ function createApp() {
       } catch (err) { fail(ack, err); }
     });
 
+    // Host kann den ganzen Raum schliessen (z. B. wenn etwas hängt). Alle landen
+    // wieder auf dem Startbildschirm und müssen neu beitreten.
+    socket.on('closeRoom', (data, ack) => {
+      try {
+        const found = findByToken(data && data.token);
+        if (!found) throw new GameError('Sitzung nicht gefunden.');
+        const { room, player } = found;
+        if (player.token !== room.hostToken) {
+          throw new GameError('Nur der Host kann den Raum schliessen.');
+        }
+        for (const p of room.players) {
+          if (p.socketId) io.to(p.socketId).emit('roomClosed');
+        }
+        rooms.delete(room.code);
+        ok(ack);
+      } catch (err) { fail(ack, err); }
+    });
+
     const gameAction = (handler) => (data, ack) => {
       try {
         const found = findByToken(data && data.token);

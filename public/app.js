@@ -111,6 +111,11 @@ $('btn-leave').addEventListener('click', () => {
   show('screen-start');
 });
 
+function closeRoom() {
+  if (!confirm('Raum wirklich für alle schliessen? Alle müssen neu beitreten.')) return;
+  send('closeRoom');
+}
+
 function renderLobby(st) {
   show('screen-lobby');
   $('lobby-code').textContent = st.roomCode;
@@ -148,10 +153,15 @@ function renderHeader(st) {
   const cards = st.cardsThisRound !== null
     ? `${st.cardsThisRound} Karte${st.cardsThisRound === 1 ? '' : 'n'}`
     : '';
+  const closeBtn = st.isHost
+    ? '<button id="btn-close-game" class="btn danger small" title="Raum schliessen" aria-label="Raum schliessen">🚪</button>'
+    : '';
   $('game-header').innerHTML =
     `<span class="round">Runde ${st.roundNumber}/${st.totalRounds}</span>` +
     `<span>${cards} ${blind}</span>` +
-    `<span>Raum ${esc(st.roomCode)}</span>`;
+    `<span class="header-right">${closeBtn}<span>Raum ${esc(st.roomCode)}</span></span>`;
+  const cb = $('btn-close-game');
+  if (cb) cb.addEventListener('click', closeRoom);
 }
 
 function renderPlayersBar(st) {
@@ -425,4 +435,11 @@ socket.on('state', (st) => {
 
 socket.on('disconnect', () => {
   toast('Verbindung unterbrochen – verbinde neu …');
+});
+
+socket.on('roomClosed', () => {
+  localStorage.removeItem('ftn_token');
+  state = null;
+  show('screen-start');
+  toast('Der Host hat den Raum geschlossen.');
 });
