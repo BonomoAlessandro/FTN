@@ -97,6 +97,7 @@ function createApp() {
           hostToken: null,
           players: [],
           game: null,
+          startOffset: 0,
         };
         const player = {
           token: crypto.randomBytes(16).toString('hex'),
@@ -194,7 +195,9 @@ function createApp() {
       if (player.token !== room.hostToken) throw new GameError('Nur der Host kann das Spiel starten.');
       if (room.game) throw new GameError('Das Spiel läuft bereits.');
       if (room.players.length < MIN_PLAYERS) throw new GameError(`Es braucht mindestens ${MIN_PLAYERS} Spieler.`);
-      room.game = new Game(room.players.map((p) => ({ id: p.pid, name: p.name })));
+      // Das allererste Spiel startet ein zufälliger Spieler (nicht zwingend der Host).
+      room.startOffset = Math.floor(Math.random() * room.players.length);
+      room.game = new Game(room.players.map((p) => ({ id: p.pid, name: p.name })), { startOffset: room.startOffset });
     }));
 
     socket.on('bid', gameAction((room, player, data) => {
@@ -221,7 +224,9 @@ function createApp() {
     socket.on('restartGame', gameAction((room, player) => {
       if (!room.game || room.game.phase !== 'gameOver') throw new GameError('Das Spiel ist noch nicht zu Ende.');
       if (player.token !== room.hostToken) throw new GameError('Nur der Host kann ein neues Spiel starten.');
-      room.game = new Game(room.players.map((p) => ({ id: p.pid, name: p.name })));
+      // Jedes weitere Spiel rückt den Startspieler um einen Platz weiter.
+      room.startOffset = ((room.startOffset || 0) + 1) % room.players.length;
+      room.game = new Game(room.players.map((p) => ({ id: p.pid, name: p.name })), { startOffset: room.startOffset });
     }));
 
     socket.on('disconnect', () => {

@@ -21,6 +21,7 @@ class Game {
     }
     this.players = players.map((p) => ({ id: p.id, name: p.name }));
     this.opts = opts;
+    this.startOffset = Number.isInteger(opts.startOffset) ? opts.startOffset : 0;
     this.scores = {};
     this.bidHistory = {};
     for (const p of this.players) {
@@ -48,7 +49,7 @@ class Game {
     for (const p of this.players) this.hands[p.id] = deck.splice(0, this.cardsThisRound);
     this.deck = deck;
     this.discardPile = [];
-    this.starterIndex = this.roundIndex % this.n;
+    this.starterIndex = (this.roundIndex + this.startOffset) % this.n;
     this.bids = {};
     this.tricksWon = {};
     for (const p of this.players) {
