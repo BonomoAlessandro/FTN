@@ -12,10 +12,10 @@ const SUIT_INFO = {
   schilten: { symbol: '🛡', color: '#2c5aa0' },
 };
 const RANK_NAMES = {
-  6: '6', 7: '7', 8: '8', 9: '9',
-  10: 'Banner', 11: 'Under', 12: 'Ober', 13: 'König', 14: 'Ass',
+  6: '6', 7: '7', 8: '8', 9: '9', 10: '10',
+  11: 'Under', 12: 'Ober', 13: 'König', 14: 'Ass',
 };
-const RANK_SHORT = { 6: '6', 7: '7', 8: '8', 9: '9', 10: 'B', 11: 'U', 12: 'O', 13: 'K', 14: 'A' };
+const RANK_SHORT = { 6: '6', 7: '7', 8: '8', 9: '9', 10: '10', 11: 'U', 12: 'O', 13: 'K', 14: 'A' };
 
 let state = null;
 let selectedCardId = null;

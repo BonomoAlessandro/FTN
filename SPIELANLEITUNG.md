@@ -1,13 +1,13 @@
 # Spielanleitung «Stichraten»
 
 ## Material & Spieler
-- 36 Schweizer Jasskarten (Rosen, Schellen, Eicheln, Schilten; je 6–9, Banner/10, Under, Ober, König, Ass)
+- 36 Schweizer Jasskarten (Rosen, Schellen, Eicheln, Schilten; je 6–10, Under, Ober, König, Ass)
 - 3 bis 7 Spieler
 
 ## Kartenrangfolge
 Nur der **Wert** der Karte zählt, die Farbe ist bedeutungslos:
 
-**6 < 7 < 8 < 9 < Banner (10) < Under < Ober < König < Ass**
+**6 < 7 < 8 < 9 < 10 < Under < Ober < König < Ass**
 
 Es gibt keinen Trumpf und keinen Bedienzwang – jede Karte darf jederzeit gespielt werden. Da jeder Wert vierfach existiert, sind Gleichstände möglich (siehe «Stich-Duell»).
 

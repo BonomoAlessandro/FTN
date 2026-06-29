@@ -63,7 +63,7 @@ PORT=8080 npm start
 
 ## Spielregeln in Kürze
 
-- **36 Jasskarten**, nur der Wert zählt: `6 < 7 < 8 < 9 < Banner < Under < Ober < König < Ass`.
+- **36 Jasskarten**, nur der Wert zählt: `6 < 7 < 8 < 9 < 10 < Under < Ober < König < Ass`.
   Kein Trumpf, kein Bedienzwang.
 - **10 Runden** mit `5 → 4 → 3 → 2 → 1 → 1 → 2 → 3 → 4 → 5` Karten pro Spieler.
 - Jede Runde: **Ansagen → Stiche spielen → Punkte werten**.
