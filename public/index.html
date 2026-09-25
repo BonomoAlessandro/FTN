@@ -134,53 +134,82 @@
   <div id="toast" class="hidden" role="alert"></div>
 
   <!-- Verlauf: wer hat in welcher Runde wie viele Stiche angesagt -->
-  <dialog id="history-dialog">
-    <article>
-      <h2>Verlauf der Ansagen</h2>
+  <dialog id="history-dialog" class="sheet" aria-labelledby="history-title">
+    <header class="sheet-head">
+      <span class="grabber" aria-hidden="true"></span>
+      <h2 id="history-title"><span class="sheet-icon" aria-hidden="true">📜</span>Verlauf der Ansagen</h2>
+      <button type="button" class="sheet-close" data-close aria-label="Schliessen">✕</button>
+    </header>
+    <div class="sheet-body">
       <div id="history-body"></div>
-      <p class="history-legend">
-        Grosse Zahl = Ansage, kleine Zahl = gemachte Stiche.<br>
-        <span class="lg-hit">grün</span> erfüllt · <span class="lg-miss">rot</span> verfehlt ·
-        <span class="lg-now">gelb</span> laufende Runde ·
-        <b>≠2</b> = diese Zahl ist gesperrt (2× nacheinander angesagt)
-      </p>
-    </article>
-    <form method="dialog"><button class="btn primary">Schliessen</button></form>
+      <ul class="legend">
+        <li><span class="swatch num">2<small>1</small></span>Ansage · gemachte Stiche</li>
+        <li><span class="swatch hit"></span>erfüllt</li>
+        <li><span class="swatch miss"></span>verfehlt</li>
+        <li><span class="swatch now"></span>laufende Runde</li>
+        <li><span class="swatch lock">≠2</span>gesperrt (2× nacheinander)</li>
+      </ul>
+    </div>
   </dialog>
 
   <!-- Spielanleitung -->
-  <dialog id="rules-dialog">
-    <article>
-      <h2>Spielanleitung «Stichraten»</h2>
+  <dialog id="rules-dialog" class="sheet" aria-labelledby="rules-title">
+    <header class="sheet-head">
+      <span class="grabber" aria-hidden="true"></span>
+      <h2 id="rules-title"><span class="sheet-icon" aria-hidden="true">📖</span>Spielanleitung</h2>
+      <button type="button" class="sheet-close" data-close aria-label="Schliessen">✕</button>
+    </header>
+    <div class="sheet-body rules">
       <h3>Karten</h3>
       <p>36 Jasskarten. Nur der <b>Wert</b> zählt, die Farbe ist egal:<br>
       <b>6 &lt; 7 &lt; 8 &lt; 9 &lt; 10 &lt; Under &lt; Ober &lt; König &lt; Ass</b><br>
       Kein Trumpf, kein Bedienzwang. Jeder Wert existiert 4× – Gleichstände sind möglich.</p>
+
       <h3>Ablauf</h3>
       <p>10 Runden mit <b>5 → 4 → 3 → 2 → 1 → 1 → 2 → 3 → 4 → 5</b> Karten.
       Jede Runde: <b>Ansagen → Stiche spielen → Punkte werten</b>. Der Startspieler wechselt jede Runde.</p>
+
       <h3>Ansagen</h3>
       <p>Jeder sagt reihum an, wie viele Stiche er macht.</p>
       <ul>
         <li><b>Die Summe darf nicht aufgehen:</b> Die Summe aller Ansagen darf nicht gleich der Stichzahl sein – der letzte Ansager ist eingeschränkt. <i>(Ausnahme: 1er-Runden.)</i></li>
         <li><b>Max. 2× dieselbe Zahl nacheinander:</b> Wer zweimal hintereinander dieselbe Zahl angesagt hat, muss etwas anderes ansagen. Danach ist die Zahl wieder frei.</li>
       </ul>
+
       <h3>Stiche</h3>
       <p>Reihum eine Karte spielen – die höchste gewinnt. Der Gewinner spielt aus.</p>
       <p><b>Stich-Duell:</b> Bei Gleichstand der höchsten Karte spielen die Beteiligten gleichzeitig verdeckt eine weitere Karte – der Gewinner erhält <b>beide</b> Stiche. Alle Unbeteiligten werfen eine Karte ab. Bei erneutem Gleichstand wird wiederholt (3, 4, … Stiche).</p>
       <p><b>Letzter Stich:</b> Bei Gleichstand ohne Handkarten ziehen die Beteiligten zufällig eine neue Karte – die höhere gewinnt.</p>
+
       <h3>Punkte</h3>
       <ul>
         <li><b>Ansage korrekt:</b> 10 + Stiche² (0&nbsp;→&nbsp;10, 1&nbsp;→&nbsp;11, 2&nbsp;→&nbsp;14, 3&nbsp;→&nbsp;19, 4&nbsp;→&nbsp;26, 5&nbsp;→&nbsp;35)</li>
         <li><b>Ansage falsch:</b> −5 Punkte pro Stich Abweichung</li>
       </ul>
+
       <h3>Blindrunden (Runde 5 + 6)</h3>
       <p>Du siehst nur die Karten der <b>anderen</b>, nicht deine eigene. Sage 0 oder 1 an.
       Einzige Runden, in denen die Summe aufgehen darf.</p>
+
       <h3>Spielende</h3>
       <p>Nach Runde 10 gewinnt, wer die meisten Punkte hat.</p>
-    </article>
-    <form method="dialog"><button class="btn primary">Schliessen</button></form>
+    </div>
+    <footer class="sheet-foot">
+      <button type="button" class="btn primary" data-close>Schliessen</button>
+    </footer>
+  </dialog>
+
+  <!-- Rückfrage (ersetzt das native confirm()) -->
+  <dialog id="confirm-dialog" class="sheet compact" aria-labelledby="confirm-title">
+    <div class="sheet-body confirm">
+      <div class="confirm-icon" id="confirm-icon" aria-hidden="true"></div>
+      <h2 id="confirm-title"></h2>
+      <p id="confirm-text"></p>
+      <div class="confirm-actions">
+        <button type="button" class="btn ghost" data-close>Abbrechen</button>
+        <button type="button" class="btn danger" id="confirm-ok"></button>
+      </div>
+    </div>
   </dialog>
 
   <script src="/socket.io/socket.io.js"></script>

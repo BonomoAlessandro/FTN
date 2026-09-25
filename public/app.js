@@ -140,19 +140,67 @@ $('input-code').addEventListener('input', (e) => {
   e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
 });
 
-const openRules = () => $('rules-dialog').showModal();
+// ---------- Fenster (Sheets) ----------
+
+function openSheet(dialog) {
+  if (dialog.open) return;
+  dialog.classList.remove('closing');
+  dialog.showModal();
+  const body = dialog.querySelector('.sheet-body');
+  if (body) body.scrollTop = 0;
+}
+
+/** Schliesst mit kurzer Ausblend-Animation. */
+function closeSheet(dialog) {
+  if (!dialog.open || dialog.classList.contains('closing')) return;
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduced) return dialog.close();
+  dialog.classList.add('closing');
+  setTimeout(() => {
+    dialog.classList.remove('closing');
+    dialog.close();
+  }, 170);
+}
+
+for (const dialog of document.querySelectorAll('dialog.sheet')) {
+  // Tippen auf den abgedunkelten Hintergrund schliesst
+  dialog.addEventListener('click', (e) => { if (e.target === dialog) closeSheet(dialog); });
+  // Escape bzw. Zurück-Geste: ebenfalls mit Animation
+  dialog.addEventListener('cancel', (e) => { e.preventDefault(); closeSheet(dialog); });
+  for (const btn of dialog.querySelectorAll('[data-close]')) {
+    btn.addEventListener('click', () => closeSheet(dialog));
+  }
+}
+
+/** Gestaltete Rückfrage statt window.confirm(); liefert true bei Bestätigung. */
+function askConfirm({ icon = '⚠️', title, text, ok }) {
+  const dialog = $('confirm-dialog');
+  $('confirm-icon').textContent = icon;
+  $('confirm-title').textContent = title;
+  $('confirm-text').textContent = text;
+  $('confirm-ok').textContent = ok;
+  openSheet(dialog);
+  return new Promise((resolve) => {
+    const okBtn = $('confirm-ok');
+    const done = (result) => {
+      okBtn.removeEventListener('click', onOk);
+      dialog.removeEventListener('close', onClose);
+      resolve(result);
+    };
+    const onOk = () => { done(true); closeSheet(dialog); };
+    const onClose = () => done(false);
+    okBtn.addEventListener('click', onOk);
+    dialog.addEventListener('close', onClose);
+  });
+}
+
+const openRules = () => openSheet($('rules-dialog'));
 $('btn-history').addEventListener('click', () => {
-  $('history-dialog').showModal();
+  openSheet($('history-dialog'));
   renderHistory(true);
-});
-$('history-dialog').addEventListener('click', (e) => {
-  if (e.target === e.currentTarget) e.currentTarget.close();
 });
 $('btn-rules').addEventListener('click', openRules);
 $('btn-game-rules').addEventListener('click', openRules);
-$('rules-dialog').addEventListener('click', (e) => {
-  if (e.target === e.currentTarget) e.currentTarget.close(); // Tippen auf den Hintergrund
-});
 
 function leaveRoom() {
   send('leaveRoom');
@@ -178,8 +226,14 @@ $('btn-share').addEventListener('click', async () => {
   }
 });
 
-$('btn-close-game').addEventListener('click', () => {
-  if (confirm('Raum wirklich für alle schliessen? Alle müssen neu beitreten.')) send('closeRoom');
+$('btn-close-game').addEventListener('click', async () => {
+  const yes = await askConfirm({
+    icon: '🚪',
+    title: 'Raum schliessen?',
+    text: 'Das Spiel wird für alle beendet. Alle landen wieder auf dem Startbildschirm und müssen neu beitreten.',
+    ok: 'Schliessen',
+  });
+  if (yes) send('closeRoom');
 });
 
 function renderLobby(st) {
