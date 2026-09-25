@@ -259,6 +259,12 @@ input[type="text"]:focus { border-color: var(--gold); }
   cursor: pointer;
 }
 .bid-btn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 #a88a2f; }
+.bid-btn.selected {
+  background: #1a5a46;
+  color: #fff;
+  box-shadow: 0 0 0 3px var(--gold), 0 3px 0 #0c3326;
+  transform: scale(1.08);
+}
 .bid-btn:disabled { background: #3d4a45; color: #8a948f; box-shadow: none; text-decoration: line-through; }
 .bid-note { font-size: 0.78rem; color: var(--muted); text-align: center; }
 

@@ -10,6 +10,8 @@ const OVERLAY_MS = 2600;
 
 let state = null;
 let selectedCardId = null;
+let selectedBid = null; // angetippte, aber noch nicht bestätigte Ansage
+let bidPending = false; // Ansage gesendet, Antwort des Servers steht aus
 let shownEventId = 0;
 let eventsSynced = false; // erst nach dem ersten Spielzustand Ereignisse anzeigen
 let overlayQueue = Promise.resolve();
@@ -377,10 +379,43 @@ function renderActions(st) {
       if (allowed) continue;
       forbidden.push(v === st.blockedBid ? `${v} gesperrt (2× nacheinander)` : `${v} verboten (Summe darf nicht aufgehen)`);
     }
+    if (!st.allowedBids.includes(selectedBid)) selectedBid = null;
+    // Zweistufig gegen Vertipper: Zahl antippen, dann bestätigen
+    const confirm = selectedBid === null
+      ? '<p class="bid-note">Zahl antippen und dann bestätigen</p>'
+      : `<button id="btn-bid-confirm" class="btn primary" ${bidPending ? 'disabled' : ''}>` +
+        `${plural(selectedBid, 'Stich', 'Stiche')} ansagen</button>`;
     area.innerHTML = `<div class="bid-buttons">${buttons}</div>` +
-      (forbidden.length ? `<div class="bid-note">${forbidden.join(' · ')}</div>` : '');
-    for (const btn of area.querySelectorAll('.bid-btn:not([disabled])')) {
-      btn.addEventListener('click', () => send('bid', { value: Number(btn.dataset.bid) }));
+      (forbidden.length ? `<div class="bid-note">${forbidden.join(' · ')}</div>` : '') + confirm;
+    for (const btn of area.querySelectorAll('.bid-btn')) {
+      const v = Number(btn.dataset.bid);
+      if (v === selectedBid) {
+        btn.classList.add('selected');
+        btn.setAttribute('aria-pressed', 'true');
+      }
+      if (btn.disabled) continue;
+      btn.addEventListener('click', () => {
+        if (bidPending) return;
+        selectedBid = v;
+        renderActions(st);
+      });
+    }
+    const ok = $('btn-bid-confirm');
+    if (ok) {
+      ok.addEventListener('click', () => {
+        if (bidPending || selectedBid === null) return;
+        bidPending = true;
+        renderActions(st);
+        socket.emit('bid', { token: token(), value: selectedBid }, (res) => {
+          bidPending = false;
+          if (res && res.ok) {
+            selectedBid = null;
+          } else {
+            toast((res && res.error) || 'Fehler');
+            if (state) renderActions(state);
+          }
+        });
+      });
     }
     return;
   }
@@ -623,6 +658,11 @@ socket.on('state', (st) => {
   if (!prev || prev.phase !== st.phase || prev.screen !== st.screen ||
       (st.hand && !st.hand.some((c) => c.id === selectedCardId))) {
     selectedCardId = null;
+  }
+  // Angetippte Ansage verwerfen, sobald man nicht mehr am Ansagen ist
+  if (!(st.phase === 'bidding' && st.allowedBids) ||
+      (prev && prev.roundNumber !== st.roundNumber)) {
+    selectedBid = null;
   }
   if (st.screen === 'lobby') {
     shownEventId = 0;
