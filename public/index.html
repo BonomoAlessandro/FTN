@@ -2,51 +2,151 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#0e3b2e">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0c3326">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Stichraten">
   <title>Stichraten</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
+  <!-- SVG-Sprite: Farbsymbole der Schweizer Jasskarten (nicht display:none, sonst fehlen Verläufe) -->
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="card-paper" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#fffdf7"/>
+        <stop offset="1" stop-color="#f4eddb"/>
+      </linearGradient>
+      <pattern id="card-back-pattern" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+        <rect width="10" height="10" fill="#8f252b"/>
+        <path d="M0 5 H10 M5 0 V10" stroke="#b8454b" stroke-width="1.4"/>
+      </pattern>
+    </defs>
+
+    <symbol id="suit-rosen" viewBox="0 0 40 40">
+      <path d="M20 12 L31.5 4.2 L27.6 17.5 L38.6 26 L24.7 26.5 L20 39.5 L15.3 26.5 L1.4 26 L12.4 17.5 L8.5 4.2 Z" fill="#2e7d32" stroke="#1b4d1e" stroke-width=".8" stroke-linejoin="round"/>
+      <g fill="#d0342c" stroke="#7f1512" stroke-width="1">
+        <circle cx="20" cy="10.5" r="8.3"/>
+        <circle cx="29" cy="17.1" r="8.3"/>
+        <circle cx="25.6" cy="27.7" r="8.3"/>
+        <circle cx="14.4" cy="27.7" r="8.3"/>
+        <circle cx="11" cy="17.1" r="8.3"/>
+      </g>
+      <circle cx="20" cy="20" r="6.6" fill="#f6c343" stroke="#a36b00"/>
+      <circle cx="20" cy="20" r="2.4" fill="#d0342c"/>
+    </symbol>
+
+    <symbol id="suit-schellen" viewBox="0 0 40 40">
+      <circle cx="20" cy="4.6" r="3" fill="none" stroke="#7a4d00" stroke-width="2"/>
+      <circle cx="20" cy="22" r="15" fill="#f2b705" stroke="#7a4d00" stroke-width="1.5"/>
+      <path d="M5.9 17 H34.1 A15 15 0 0 1 35 23 H5 A15 15 0 0 1 5.9 17 Z" fill="#c62828" stroke="#7a1010" stroke-width=".8"/>
+      <g fill="#ffd54a"><circle cx="12" cy="20" r="1.4"/><circle cx="20" cy="20" r="1.4"/><circle cx="28" cy="20" r="1.4"/></g>
+      <path d="M13 30.5 Q20 34.5 27 30.5" fill="none" stroke="#5a3800" stroke-width="2.2" stroke-linecap="round"/>
+      <ellipse cx="14" cy="12.5" rx="3.6" ry="2.2" fill="#fff" opacity=".55"/>
+    </symbol>
+
+    <symbol id="suit-eicheln" viewBox="0 0 40 40">
+      <path d="M22 7 C27 1 34 1 38.5 4.5 C34.5 9.5 27 10.5 22 7 Z" fill="#3a8a3d" stroke="#1b4d1e" stroke-width=".8"/>
+      <path d="M20 10 C20 6.5 21 3.5 23.5 2" fill="none" stroke="#4a2a0a" stroke-width="2.2" stroke-linecap="round"/>
+      <path d="M11 20 C11 31 15 38.5 20 38.5 C25 38.5 29 31 29 20 Z" fill="#d49a2a" stroke="#6b4210" stroke-width="1.2"/>
+      <path d="M15 24 C15 30 16.5 34 19 35.5" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="2" stroke-linecap="round"/>
+      <path d="M8 21.5 C8 13.5 13 9 20 9 C27 9 32 13.5 32 21.5 C27.5 23.3 12.5 23.3 8 21.5 Z" fill="#7a4a1a" stroke="#4a2a0a" stroke-width="1.2"/>
+      <g fill="#a8743a"><circle cx="14" cy="17" r="1.2"/><circle cx="20" cy="14" r="1.2"/><circle cx="26" cy="17" r="1.2"/><circle cx="17" cy="20" r="1.2"/><circle cx="23" cy="20" r="1.2"/></g>
+    </symbol>
+
+    <symbol id="suit-schilten" viewBox="0 0 40 40">
+      <path d="M5.5 4.5 H34.5 V18 C34.5 28 27.5 34.5 20 38.5 C12.5 34.5 5.5 28 5.5 18 Z" fill="#1d4f91" stroke="#0f2c52" stroke-width="1"/>
+      <path d="M9.5 8.5 H30.5 V18 C30.5 25.5 25.5 30.5 20 33.8 C14.5 30.5 9.5 25.5 9.5 18 Z" fill="#f2c230"/>
+      <path d="M16.8 8.5 H23.2 V31.6 L20 33.8 L16.8 31.6 Z" fill="#c62828"/>
+      <circle cx="20" cy="18" r="2.6" fill="#f2c230" stroke="#7a4d00" stroke-width=".8"/>
+    </symbol>
+  </svg>
+
+  <!-- Verbindung wird hergestellt -->
+  <section id="screen-loading" class="screen">
+    <div class="spinner" aria-hidden="true"></div>
+    <p class="hint">Verbinde …</p>
+  </section>
+
   <!-- Start -->
-  <section id="screen-start" class="screen">
+  <section id="screen-start" class="screen hidden">
+    <div id="hero-cards" class="hero-cards" aria-hidden="true"></div>
     <h1 class="logo">Stichraten</h1>
     <p class="tagline">Das Jasskarten-Spiel für 3–7 Spieler</p>
-    <input id="input-name" type="text" maxlength="16" placeholder="Dein Name" autocomplete="off">
-    <button id="btn-create" class="btn primary">Raum erstellen</button>
-    <div class="join-row">
-      <input id="input-code" type="text" maxlength="4" placeholder="CODE" autocomplete="off" autocapitalize="characters">
-      <button id="btn-join" class="btn">Beitreten</button>
-    </div>
-    <button id="btn-rules" class="btn ghost">📖 Spielanleitung</button>
+    <form id="form-start" class="stack" autocomplete="off">
+      <label class="field">
+        <span>Dein Name</span>
+        <input id="input-name" type="text" maxlength="16" placeholder="z. B. Anna" enterkeyhint="done">
+      </label>
+      <button id="btn-create" type="button" class="btn primary">Raum erstellen</button>
+      <div class="divider"><span>oder beitreten</span></div>
+      <div class="join-row">
+        <input id="input-code" type="text" maxlength="4" placeholder="CODE" autocapitalize="characters"
+               spellcheck="false" inputmode="text" enterkeyhint="go" aria-label="Raum-Code">
+        <button id="btn-join" type="submit" class="btn">Beitreten</button>
+      </div>
+    </form>
+    <button id="btn-rules" type="button" class="btn ghost">📖 Spielanleitung</button>
   </section>
 
   <!-- Lobby -->
   <section id="screen-lobby" class="screen hidden">
-    <h2>Raum-Code</h2>
+    <p class="eyebrow">Raum-Code</p>
     <div id="lobby-code" class="room-code"></div>
-    <p class="hint">Deine Freunde öffnen dieselbe Adresse und treten mit diesem Code bei.</p>
-    <ul id="lobby-players" class="player-list"></ul>
-    <div id="lobby-action"></div>
-    <button id="btn-leave" class="btn ghost small">Raum verlassen</button>
+    <button id="btn-share" type="button" class="btn ghost small">🔗 Einladung teilen</button>
+    <div class="stack">
+      <p id="lobby-count" class="eyebrow"></p>
+      <ul id="lobby-players" class="player-list"></ul>
+      <div id="lobby-action"></div>
+    </div>
+    <button id="btn-leave" type="button" class="btn ghost small">Raum verlassen</button>
   </section>
 
   <!-- Spiel -->
   <section id="screen-game" class="screen hidden">
-    <header id="game-header"></header>
+    <header id="game-header">
+      <div id="round-info"></div>
+      <div class="header-buttons">
+        <button id="btn-history" type="button" class="icon-btn wide" aria-label="Verlauf der Ansagen">📜<span class="label"> Verlauf</span></button>
+        <button id="btn-game-rules" type="button" class="icon-btn" aria-label="Spielanleitung">?</button>
+        <button id="btn-close-game" type="button" class="icon-btn danger hidden" aria-label="Raum schliessen">✕</button>
+      </div>
+    </header>
     <div id="players-bar"></div>
     <main id="table-area"></main>
-    <div id="status"></div>
+    <div id="status" aria-live="polite"></div>
     <div id="action-area"></div>
     <footer id="hand-area"></footer>
   </section>
 
-  <!-- Ereignis-Overlay (Stich gewonnen, Duell, Ziehen) -->
-  <div id="overlay" class="hidden"><div id="overlay-content"></div></div>
+  <!-- Ereignis-Overlay (Stich gewonnen, Duell, Ziehen) – Tippen schliesst -->
+  <div id="overlay" class="hidden" role="dialog" aria-live="assertive">
+    <div id="overlay-content"></div>
+  </div>
 
-  <!-- Toast für Fehlermeldungen -->
-  <div id="toast" class="hidden"></div>
+  <div id="conn-banner" class="hidden">Verbindung unterbrochen – verbinde neu …</div>
+  <div id="toast" class="hidden" role="alert"></div>
+
+  <!-- Verlauf: wer hat in welcher Runde wie viele Stiche angesagt -->
+  <dialog id="history-dialog">
+    <article>
+      <h2>Verlauf der Ansagen</h2>
+      <div id="history-body"></div>
+      <p class="history-legend">
+        Grosse Zahl = Ansage, kleine Zahl = gemachte Stiche.<br>
+        <span class="lg-hit">grün</span> erfüllt · <span class="lg-miss">rot</span> verfehlt ·
+        <span class="lg-now">gelb</span> laufende Runde ·
+        <b>≠2</b> = diese Zahl ist gesperrt (2× nacheinander angesagt)
+      </p>
+    </article>
+    <form method="dialog"><button class="btn primary">Schliessen</button></form>
+  </dialog>
 
   <!-- Spielanleitung -->
   <dialog id="rules-dialog">
@@ -79,11 +179,12 @@
       Einzige Runden, in denen die Summe aufgehen darf.</p>
       <h3>Spielende</h3>
       <p>Nach Runde 10 gewinnt, wer die meisten Punkte hat.</p>
-      <button class="btn primary" onclick="document.getElementById('rules-dialog').close()">Schliessen</button>
     </article>
+    <form method="dialog"><button class="btn primary">Schliessen</button></form>
   </dialog>
 
   <script src="/socket.io/socket.io.js"></script>
+  <script src="cards.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

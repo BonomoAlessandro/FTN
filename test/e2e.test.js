@@ -155,3 +155,97 @@ test('E2E: Reconnect mit Token stellt die Sitzung wieder her', async () => {
     httpServer.close();
   }
 });
+
+async function startServer(opts) {
+  const ctx = createApp(opts);
+  await new Promise((resolve) => ctx.httpServer.listen(0, resolve));
+  ctx.url = `http://localhost:${ctx.httpServer.address().port}`;
+  ctx.sockets = [];
+  ctx.connect = () => {
+    const s = ioClient(ctx.url);
+    ctx.sockets.push(s);
+    return s;
+  };
+  ctx.stop = () => {
+    for (const s of ctx.sockets) s.close();
+    ctx.io.close();
+    ctx.httpServer.close();
+  };
+  return ctx;
+}
+
+const nextState = (socket, pred = () => true) => new Promise((resolve) => {
+  const h = (st) => { if (pred(st)) { socket.off('state', h); resolve(st); } };
+  socket.on('state', h);
+});
+
+test('E2E: Spieler-IDs bleiben eindeutig, auch wenn jemand die Lobby verlässt', async () => {
+  const ctx = await startServer();
+  try {
+    const [a, b, c, d] = [ctx.connect(), ctx.connect(), ctx.connect(), ctx.connect()];
+    const created = await emitAsync(a, 'createRoom', { name: 'Anna' });
+    const jb = await emitAsync(b, 'joinRoom', { name: 'Beni', code: created.code });
+    await emitAsync(c, 'joinRoom', { name: 'Cleo', code: created.code });
+    await emitAsync(b, 'leaveRoom', { token: jb.token });
+    await emitAsync(d, 'joinRoom', { name: 'Dani', code: created.code });
+    // Doppelter Name wird abgewiesen
+    const dup = await emitAsync(ctx.connect(), 'joinRoom', { name: 'anna', code: created.code });
+    assert.equal(dup.ok, false);
+
+    const statePromise = nextState(a, (st) => st.screen === 'game');
+    await emitAsync(a, 'startGame', { token: created.token });
+    const st = await statePromise;
+    const ids = st.players.map((p) => p.id);
+    assert.equal(new Set(ids).size, 3);
+    assert.deepEqual(st.players.map((p) => p.name).sort(), ['Anna', 'Cleo', 'Dani']);
+  } finally { ctx.stop(); }
+});
+
+test('E2E: Lobby hält den Platz während der Schonfrist frei', async () => {
+  const ctx = await startServer({ lobbyGraceMs: 150 });
+  try {
+    const a = ctx.connect();
+    const created = await emitAsync(a, 'createRoom', { name: 'Anna' });
+    const b = ctx.connect();
+    const jb = await emitAsync(b, 'joinRoom', { name: 'Beni', code: created.code });
+    const c = ctx.connect();
+    await emitAsync(c, 'joinRoom', { name: 'Cleo', code: created.code });
+
+    // Beni kurz weg und innerhalb der Frist zurück -> bleibt im Raum
+    b.close();
+    await new Promise((r) => setTimeout(r, 50));
+    const b2 = ctx.connect();
+    assert.ok((await emitAsync(b2, 'rejoin', { token: jb.token })).ok);
+    await new Promise((r) => setTimeout(r, 200));
+    const room = ctx.rooms.get(created.code);
+    assert.equal(room.players.length, 3);
+
+    // Cleo bleibt weg -> wird nach der Frist entfernt
+    c.close();
+    await new Promise((r) => setTimeout(r, 250));
+    assert.deepEqual(room.players.map((p) => p.name), ['Anna', 'Beni']);
+  } finally { ctx.stop(); }
+});
+
+test('E2E: Ist der Host offline, darf ein anderer Spieler weiterschalten', async () => {
+  const ctx = await startServer();
+  try {
+    const a = ctx.connect();
+    const created = await emitAsync(a, 'createRoom', { name: 'Anna' });
+    const b = ctx.connect();
+    const jb = await emitAsync(b, 'joinRoom', { name: 'Beni', code: created.code });
+    const c = ctx.connect();
+    await emitAsync(c, 'joinRoom', { name: 'Cleo', code: created.code });
+    await emitAsync(a, 'startGame', { token: created.token });
+
+    // Beni ist (noch) nicht Host
+    assert.equal((await emitAsync(b, 'nextRound', { token: jb.token })).error, 'Nur der Host kann weiterschalten.');
+
+    const promoted = nextState(b, (st) => st.isHost);
+    a.close();
+    const st = await promoted;
+    assert.equal(st.players.find((p) => p.name === 'Beni').isHost, true);
+    // Während des Spiels darf niemand einfach den Raum verlassen
+    assert.equal((await emitAsync(b, 'leaveRoom', { token: jb.token })).ok, false);
+  } finally { ctx.stop(); }
+});

@@ -1,0 +1,11 @@
+{
+  "name": "Stichraten",
+  "short_name": "Stichraten",
+  "description": "Das Jasskarten-Spiel für 3–7 Spieler",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0c3326",
+  "theme_color": "#0c3326",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

@@ -31,6 +31,8 @@ class Game {
     this.eventId = 0;
     this.roundIndex = -1;
     this.ranking = null;
+    // Verlauf aller Runden: Ansagen und Ergebnis jedes Spielers.
+    this.history = [];
     this._startRound();
   }
 
@@ -65,6 +67,7 @@ class Game {
     this.lastDuel = null;
     this.lastDraw = null;
     this.roundResults = null;
+    this.history.push({ roundNumber: this.roundIndex + 1, cards: this.cardsThisRound, results: null });
   }
 
   // ---------- Ansagen ----------
@@ -249,6 +252,7 @@ class Game {
       this.bidHistory[p.id].push(bid);
       return { playerId: p.id, bid, won, points, total: this.scores[p.id] };
     });
+    this.history[this.history.length - 1].results = this.roundResults;
     this.phase = 'roundEnd';
   }
 
@@ -317,6 +321,8 @@ class Game {
       lastTrick: this.lastTrick,
       lastDuel: this.lastDuel,
       lastDraw: this.lastDraw,
+      roundPlan: ROUND_PLAN,
+      history: this.history,
       roundResults: this.roundResults,
       ranking: this.ranking,
     };

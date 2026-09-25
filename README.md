@@ -10,14 +10,23 @@ im Spiel über den Button **📖 Spielanleitung** abrufbar.
 ## Funktionen
 
 - **Echtzeit-Multiplayer** über WebSockets (Socket.io) – jeder spielt auf seinem eigenen Gerät.
-- **Raum-System**: Ein Spieler erstellt einen Raum, die anderen treten mit einem 4-stelligen Code bei.
+- **Raum-System**: Ein Spieler erstellt einen Raum, die anderen treten mit einem 4-stelligen Code bei
+  – oder direkt über den Einladungslink (`/?code=ABCD`), der sich aus der Lobby teilen lässt.
 - **Server-autoritative Spiellogik**: Der Server hält den gesamten Spielzustand; Karten der
   Mitspieler bleiben verdeckt und können nicht ausgelesen werden.
 - **Automatischer Reconnect**: Nach Bildschirmsperre, App-Wechsel oder Seiten-Reload kommt man
-  per Sitzungs-Token zurück ins laufende Spiel.
+  per Sitzungs-Token zurück ins laufende Spiel. In der Lobby bleibt der Platz 90 Sekunden reserviert.
+- **Host-Vertretung**: Ist der Host offline, übernimmt der nächste verbundene Spieler dessen Knöpfe
+  (z. B. «Nächste Runde»), damit das Spiel nie hängen bleibt.
 - **Vollständige Spielmechanik**: Ansage-Regeln, Stich-Duelle bei Gleichstand, Blindrunden
   (1-Karten-Runden) und Zufallsziehen beim letzten Stich.
-- **Mobile-first**: Reine HTML/CSS/JS-Oberfläche ohne Build-Schritt.
+- **Mobile-first**: Reine HTML/CSS/JS-Oberfläche ohne Build-Schritt, optimiert für Handys
+  (Safe-Areas, Querformat, Vibration wenn man dran ist, Bildschirm bleibt während des Spiels wach).
+  Lässt sich als App auf den Homescreen legen.
+- **Verlauf der Ansagen**: Über «📜 Verlauf» sieht jeder jederzeit, wer in welcher der 10 Runden
+  wie viele Stiche angesagt und gemacht hat – inkl. Hinweis, welche Zahl nach Regel 2 gesperrt ist.
+- **Gezeichnete Jasskarten**: Alle 36 Karten sind skalierbare SVGs mit Schweizer Farbzeichen
+  (Rosen, Schellen, Eicheln, Schilten), Pip-Bildern und Figuren für Under, Ober und König.
 
 ## Technologie
 
@@ -84,7 +93,10 @@ FTN/
 ├── public/
 │   ├── index.html # Single-Page-Client (Start, Lobby, Spiel)
 │   ├── app.js     # Client-Logik und Socket.io-Anbindung
-│   └── style.css  # Mobile-first-Styling
+│   ├── cards.js   # Jasskarten als SVG (Farbzeichen-Sprite liegt in index.html)
+│   ├── style.css  # Mobile-first-Styling
+│   ├── icon.svg   # App-Icon
+│   └── manifest.webmanifest # «Zum Home-Bildschirm» (PWA-Manifest)
 ├── test/
 │   ├── game.test.js # Unit-Tests der Spiellogik
 │   └── e2e.test.js  # End-to-End-Test über den echten Server

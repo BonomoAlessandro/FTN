@@ -294,3 +294,26 @@ test('Komplettes Spiel über alle 10 Runden mit Zufallsdecks und Bot-Strategie',
   assert.equal(g.ranking.length, 3);
   assert.ok(g.ranking[0].score >= g.ranking[1].score);
 });
+
+test('Verlauf: jede abgeschlossene Runde speichert Ansage und Stiche aller Spieler', () => {
+  const { Game } = require('../server/game');
+  const g = new Game([{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }, { id: 'c', name: 'C' }]);
+  const step = () => {
+    if (g.phase === 'bidding') g.bid(g.currentBidderId, g.allowedBids(g.currentBidderId)[0]);
+    else if (g.phase === 'playing') g.playCard(g.currentPlayerId, g.hands[g.currentPlayerId][0].id);
+    else if (g.phase === 'duel') {
+      const p = g.players.find((q) => !g.duel.picks[q.id]);
+      g.duelPick(p.id, g.hands[p.id][0].id);
+    } else if (g.phase === 'roundEnd') g.nextRound();
+  };
+  // Laufende Runde hat noch kein Ergebnis
+  assert.deepEqual(g.viewFor('a').history, [{ roundNumber: 1, cards: 5, results: null }]);
+  assert.deepEqual(g.viewFor('a').roundPlan, [5, 4, 3, 2, 1, 1, 2, 3, 4, 5]);
+  while (g.phase !== 'gameOver') step();
+  const h = g.viewFor('b').history;
+  assert.deepEqual(h.map((r) => r.cards), [5, 4, 3, 2, 1, 1, 2, 3, 4, 5]);
+  for (const p of g.players) {
+    // Verlauf deckt sich mit der intern geführten Ansage-Historie (Regel 2)
+    assert.deepEqual(h.map((r) => r.results.find((x) => x.playerId === p.id).bid), g.bidHistory[p.id]);
+  }
+});

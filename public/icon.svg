@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#0c3326"/>
+  <g transform="rotate(-12 256 280)">
+    <rect x="120" y="110" width="200" height="280" rx="22" fill="#7a1d22" stroke="#e3b95a" stroke-width="8"/>
+    <rect x="186" y="216" width="68" height="68" rx="14" fill="#d52b1e" stroke="#fff" stroke-width="5"/>
+    <path d="M211 228 H229 V241 H242 V259 H229 V272 H211 V259 H198 V241 H211 Z" fill="#fff"/>
+  </g>
+  <g transform="rotate(10 256 280)">
+    <rect x="200" y="130" width="200" height="280" rx="22" fill="#fffdf7" stroke="#c9bf9f" stroke-width="6"/>
+    <text x="232" y="196" font-family="Georgia, serif" font-weight="700" font-size="56" fill="#b3261e">A</text>
+    <g transform="translate(300 270)" fill="#d0342c" stroke="#7f1512" stroke-width="3">
+      <circle cx="0" cy="-26" r="26"/><circle cx="25" cy="-8" r="26"/><circle cx="16" cy="21" r="26"/>
+      <circle cx="-16" cy="21" r="26"/><circle cx="-25" cy="-8" r="26"/>
+      <circle r="20" fill="#f6c343" stroke="#a36b00"/>
+    </g>
+  </g>
+</svg>
