@@ -7,23 +7,112 @@ const os = require('os');
 const express = require('express');
 const { Server } = require('socket.io');
 const { Game, GameError } = require('./game');
+const { DEFAULT_LIMITS, WindowCounter, tokenBucket, clientIp } = require('./limits');
 
 const MIN_PLAYERS = 3;
 const MAX_PLAYERS = 7;
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const MAX_NAME_CHARS = 16; // sichtbare Zeichen
+const MAX_NAME_UNITS = 64; // Obergrenze in UTF-16-Einheiten
+const MAX_MARKS = 4; // Akzente pro Zeichen (gegen hoch gestapelte «Zalgo»-Namen)
+const EMPTY_ROOM_TTL_MS = 30 * 60 * 1000; // Räume, in denen alle offline sind
+
+const graphemes = new Intl.Segmenter('de', { granularity: 'grapheme' });
+
+// Unsichtbares: Steuer- und Formatzeichen (z. B. Nullbreite, Schreibrichtung umkehren)
+// sowie Füllzeichen, die als Buchstaben gelten. Ausgenommen sind der Emoji-Verbinder
+// (ZWJ) und Tag-Zeichen – sonst zerfallen Emojis wie Familien oder Regionalflaggen.
+const INVISIBLE = /(?![\u200D\u{E0020}-\u{E007F}])[\p{C}\u115F\u1160\u2800\u3164\uFFA0]/gu;
+const VISIBLE = /[\p{L}\p{N}\p{S}\p{P}]/u;
+
+/**
+ * Bereinigt einen Spielernamen, damit niemand leere oder irreführende Namen
+ * vortäuschen kann. Gekürzt wird nach sichtbaren Zeichen, damit kein Emoji
+ * halbiert wird.
+ */
+function cleanName(name) {
+  const n = (typeof name === 'string' ? name : '')
+    .normalize('NFC')
+    .replace(INVISIBLE, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  let out = '';
+  let count = 0;
+  for (const { segment } of graphemes.segment(n)) {
+    let marks = 0;
+    const capped = segment.replace(/\p{M}/gu, (m) => (++marks <= MAX_MARKS ? m : ''));
+    if (count === MAX_NAME_CHARS || out.length + capped.length > MAX_NAME_UNITS) break;
+    out += capped;
+    count += 1;
+  }
+  out = out.trim();
+  if (!VISIBLE.test(out)) throw new GameError('Bitte gib einen Namen ein.');
+  return out;
+}
+
+/**
+ * Vergleichsform für doppelte Namen: Gross/klein, Akzente und Unsichtbares zählen
+ * nicht – «Anna», «ANNA», «Ánna» und «Anna» mit unsichtbarem Zusatz gelten als gleich.
+ */
+function nameKey(name) {
+  // Nur nicht-spacing Zeichen (Akzente) entfernen: Spacing-Marks sind z. B. in
+  // indischen Schriften eigenständige Vokalzeichen (Ram und Rama auf Devanagari).
+  return name.normalize('NFKD').replace(/[\p{Mn}\p{Me}\p{Default_Ignorable_Code_Point}]/gu, '').toLowerCase();
+}
 
 /**
  * @param {object} [opts]
  * @param {number} [opts.lobbyGraceMs] Wie lange ein getrennter Spieler in der Lobby
  *   seinen Platz behält (Bildschirmsperre, App-Wechsel), bevor er entfernt wird.
+ * @param {object} [opts.limits] Überschreibt einzelne Werte aus DEFAULT_LIMITS.
+ * @param {string} [opts.clientIpHeader] Header mit der echten Client-IP hinter einem
+ *   Proxy. Standard: CLIENT_IP_HEADER, auf Render (RENDER=true) cf-connecting-ip,
+ *   sonst die Adresse der Verbindung selbst.
  */
 function createApp(opts = {}) {
   const lobbyGraceMs = opts.lobbyGraceMs ?? 90 * 1000;
+  const limits = { ...DEFAULT_LIMITS, ...opts.limits };
+  const ipHeader = (opts.clientIpHeader ?? process.env.CLIENT_IP_HEADER ??
+    (process.env.RENDER === 'true' ? 'cf-connecting-ip' : '')).toLowerCase();
+
+  const connectionsPerIp = new Map();
+  const roomCreations = new WindowCounter(limits.roomsPerIpPer10Min, 10 * 60 * 1000);
+  const joinFailures = new WindowCounter(limits.joinFailuresPerMinute, 60 * 1000);
+
+  let warnedMissingHeader = false;
+  function ipOf(req) {
+    const ip = clientIp(req.headers, req.socket && req.socket.remoteAddress, ipHeader);
+    if (!ip && ipHeader && !warnedMissingHeader) {
+      warnedMissingHeader = true;
+      console.warn(`Header «${ipHeader}» fehlt – Limits gelten pro Verbindung statt pro IP.`);
+    }
+    return ip;
+  }
 
   const app = express();
   app.use(express.static(path.join(__dirname, '..', 'public')));
   const httpServer = http.createServer(app);
-  const io = new Server(httpServer);
+  const io = new Server(httpServer, {
+    maxHttpBufferSize: limits.maxMessageBytes,
+    // Gleichzeitige Verbindungen pro IP begrenzen (sonst hält eine IP beliebig viele
+    // Sockets und damit Räume offen). Geprüft beim Verbindungsaufbau …
+    allowRequest: (req, callback) => {
+      const ip = ipOf(req);
+      callback(null, !ip || (connectionsPerIp.get(ip) || 0) < limits.maxConnectionsPerIp);
+    },
+  });
+  // … und gezählt auf Ebene der Engine: Dort endet jede Verbindung mit genau einem
+  // 'close', auch wenn sie abbricht, bevor ein Socket entsteht.
+  io.engine.on('connection', (conn) => {
+    const ip = ipOf(conn.request);
+    if (!ip) return;
+    connectionsPerIp.set(ip, (connectionsPerIp.get(ip) || 0) + 1);
+    conn.once('close', () => {
+      const left = connectionsPerIp.get(ip) - 1;
+      if (left > 0) connectionsPerIp.set(ip, left);
+      else connectionsPerIp.delete(ip);
+    });
+  });
 
   /**
    * code -> { code, hostToken, nextPid, players: [{token, pid, name, socketId, connected}], game }
@@ -32,7 +121,7 @@ function createApp(opts = {}) {
 
   function makeCode() {
     for (let attempt = 0; attempt < 100; attempt++) {
-      const code = Array.from({ length: 4 }, () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]).join('');
+      const code = Array.from({ length: 4 }, () => CODE_CHARS[crypto.randomInt(CODE_CHARS.length)]).join('');
       if (!rooms.has(code)) return code;
     }
     throw new GameError('Gerade sind keine Räume frei. Bitte später nochmals versuchen.');
@@ -73,13 +162,15 @@ function createApp(opts = {}) {
   }
 
   function bindSocket(socket, room, player) {
+    clearTimeout(player.leaveTimer);
+    player.leaveTimer = null;
     player.socketId = socket.id;
     player.connected = true;
     socket.data.member = { room, player };
   }
 
   function addPlayer(room, name, socket) {
-    if (room.players.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
+    if (room.players.some((p) => nameKey(p.name) === nameKey(name))) {
       throw new GameError('Dieser Name ist im Raum schon vergeben.');
     }
     const player = {
@@ -181,12 +272,6 @@ function createApp(opts = {}) {
     }
   }
 
-  function cleanName(name) {
-    const n = String(name || '').replace(/\s+/g, ' ').trim().slice(0, 16);
-    if (!n) throw new GameError('Bitte gib einen Namen ein.');
-    return n;
-  }
-
   function newGame(room) {
     room.game = new Game(
       room.players.map((p) => ({ id: p.pid, name: p.name })),
@@ -195,6 +280,17 @@ function createApp(opts = {}) {
   }
 
   io.on('connection', (socket) => {
+    // Schlüssel für Limits pro IP; ist die IP unbekannt, gilt das Limit pro Verbindung.
+    const limitKey = ipOf(socket.request) || socket.id;
+
+    // Nachrichten-Flut bremsen: Was über dem Limit liegt, wird abgewiesen.
+    const allowEvent = tokenBucket(limits.eventBurst, limits.eventsPerSecond);
+    socket.use((packet, next) => {
+      if (allowEvent()) return next();
+      const ack = packet[packet.length - 1];
+      if (typeof ack === 'function') ack({ ok: false, error: 'Zu viele Anfragen – bitte kurz warten.' });
+    });
+
     const fail = (ack, err) => {
       const msg = err instanceof GameError ? err.message : 'Unbekannter Fehler.';
       if (!(err instanceof GameError)) console.error(err);
@@ -214,6 +310,8 @@ function createApp(opts = {}) {
     socket.on('createRoom', (data, ack) => {
       try {
         requireNoRoom();
+        if (rooms.size >= limits.maxRooms) throw new GameError('Gerade sind alle Räume belegt. Bitte später nochmals versuchen.');
+        if (roomCreations.isBlocked(limitKey)) throw new GameError('Zu viele neue Räume – bitte später nochmals versuchen.');
         const name = cleanName(data && data.name);
         const room = {
           code: makeCode(),
@@ -226,6 +324,7 @@ function createApp(opts = {}) {
         const player = addPlayer(room, name, socket);
         room.hostToken = player.token;
         rooms.set(room.code, room);
+        roomCreations.hit(limitKey);
         ok(ack, { token: player.token, code: room.code });
         broadcast(room);
       } catch (err) { fail(ack, err); }
@@ -234,10 +333,15 @@ function createApp(opts = {}) {
     socket.on('joinRoom', (data, ack) => {
       try {
         requireNoRoom();
+        // Gegen das Durchprobieren von Raum-Codes
+        if (joinFailures.isBlocked(limitKey)) throw new GameError('Zu viele falsche Raum-Codes – bitte warte eine Minute.');
         const name = cleanName(data && data.name);
-        const code = String((data && data.code) || '').trim().toUpperCase();
+        const code = data && typeof data.code === 'string' ? data.code.trim().toUpperCase() : '';
         const room = rooms.get(code);
-        if (!room) throw new GameError('Diesen Raum gibt es nicht.');
+        if (!room) {
+          joinFailures.hit(limitKey);
+          throw new GameError('Diesen Raum gibt es nicht.');
+        }
         if (room.game) throw new GameError('Das Spiel hat bereits begonnen.');
         if (room.players.length >= MAX_PLAYERS) throw new GameError(`Der Raum ist voll (max. ${MAX_PLAYERS}).`);
         const player = addPlayer(room, name, socket);
@@ -250,11 +354,14 @@ function createApp(opts = {}) {
     socket.on('rejoin', (data, ack) => {
       try {
         const found = findByToken(data && data.token);
-        if (!found) throw new GameError('Sitzung nicht gefunden.');
+        // `gone`: Die Sitzung gibt es nicht mehr – nur dann verwirft der Client sein Token
+        // (nicht bei vorübergehenden Fehlern wie «Zu viele Anfragen»).
+        if (!found) {
+          if (typeof ack === 'function') ack({ ok: false, gone: true, error: 'Sitzung nicht gefunden.' });
+          return;
+        }
         const previous = memberOf(socket);
         if (previous && previous.player !== found.player) markOffline(previous.room, previous.player);
-        clearTimeout(found.player.leaveTimer);
-        found.player.leaveTimer = null;
         bindSocket(socket, found.room, found.player);
         ok(ack, { code: found.room.code });
         broadcast(found.room);
@@ -304,12 +411,16 @@ function createApp(opts = {}) {
       if (!room.game) throw new GameError('Das Spiel hat noch nicht begonnen.');
     };
 
+    const requireGameOver = (room) => {
+      if (!room.game || room.game.phase !== 'gameOver') throw new GameError('Das Spiel ist noch nicht zu Ende.');
+    };
+
     socket.on('startGame', gameAction((room, player) => {
       if (!isHost(room, player)) throw new GameError('Nur der Host kann das Spiel starten.');
       if (room.game) throw new GameError('Das Spiel läuft bereits.');
       dropOffline(room, player);
       // Das allererste Spiel startet ein zufälliger Spieler (nicht zwingend der Host).
-      room.startOffset = Math.floor(Math.random() * room.players.length);
+      room.startOffset = crypto.randomInt(room.players.length);
       newGame(room);
     }));
 
@@ -335,7 +446,7 @@ function createApp(opts = {}) {
     }));
 
     socket.on('restartGame', gameAction((room, player) => {
-      if (!room.game || room.game.phase !== 'gameOver') throw new GameError('Das Spiel ist noch nicht zu Ende.');
+      requireGameOver(room);
       if (!isHost(room, player)) throw new GameError('Nur der Host kann ein neues Spiel starten.');
       dropOffline(room, player);
       // Jedes weitere Spiel rückt den Startspieler um einen Platz weiter.
@@ -346,7 +457,7 @@ function createApp(opts = {}) {
     // Nach Spielende zurück in die Lobby, z. B. wenn zu wenige online sind:
     // Dort können Neue beitreten, Offline-Spieler fallen nach der Schonfrist raus.
     socket.on('backToLobby', gameAction((room, player) => {
-      if (!room.game || room.game.phase !== 'gameOver') throw new GameError('Das Spiel ist noch nicht zu Ende.');
+      requireGameOver(room);
       if (!isHost(room, player)) throw new GameError('Nur der Host kann zurück zur Lobby.');
       room.game = null;
       for (const p of room.players) {
@@ -360,13 +471,14 @@ function createApp(opts = {}) {
     });
   });
 
-  // Verwaiste Räume (alle offline) nach einer Stunde aufräumen.
+  // Verwaiste Räume (alle offline) nach einer halben Stunde aufräumen – so lange
+  // belegen sie auch einen Platz der Obergrenze für Räume.
   const sweeper = setInterval(() => {
     const now = Date.now();
     for (const [code, room] of rooms) {
       if (room.players.every((p) => !p.connected)) {
         room.emptySince = room.emptySince || now;
-        if (now - room.emptySince > 60 * 60 * 1000) {
+        if (now - room.emptySince > EMPTY_ROOM_TTL_MS) {
           for (const p of room.players) clearTimeout(p.leaveTimer);
           rooms.delete(code);
         }
@@ -374,7 +486,9 @@ function createApp(opts = {}) {
         room.emptySince = null;
       }
     }
-  }, 10 * 60 * 1000);
+    roomCreations.prune(now);
+    joinFailures.prune(now);
+  }, 5 * 60 * 1000);
   sweeper.unref();
 
   return { app, httpServer, io, rooms };
@@ -396,4 +510,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { createApp };
+module.exports = { createApp, cleanName, nameKey };

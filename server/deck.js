@@ -1,5 +1,7 @@
 'use strict';
 
+const crypto = require('crypto');
+
 const SUITS = [
   { key: 'rosen', name: 'Rosen', symbol: '✿', color: '#c0392b' },
   { key: 'schellen', name: 'Schellen', symbol: '🔔', color: '#b8860b' },
@@ -22,10 +24,11 @@ function createDeck() {
   return deck;
 }
 
+/** Fisher-Yates mit kryptografischem Zufall – Math.random liesse sich vorhersagen. */
 function shuffle(cards) {
   const a = cards.slice();
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = crypto.randomInt(i + 1);
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;

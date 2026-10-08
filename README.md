@@ -40,7 +40,7 @@ im Spiel über den Button **📖 Spielanleitung** abrufbar.
 
 ## Voraussetzungen
 
-- [Node.js](https://nodejs.org/) **18 oder neuer** (Express 5 setzt Node ≥ 18 voraus)
+- [Node.js](https://nodejs.org/) **22 bis 24** (siehe `engines` in `package.json`; Render wählt daraus die neueste Version)
 
 ## Installation & Start
 
@@ -64,6 +64,17 @@ PORT=8080 npm start
 
 > **Hinweis:** Die Spiellogik läuft im Node-Server. Änderungen am Server-Code werden erst nach
 > einem **Neustart des Prozesses** wirksam – ein Neuladen der Browser-Seite genügt nicht.
+
+### Öffentlicher Betrieb
+
+Der Server begrenzt Missbrauch: gleichzeitige Verbindungen und neue Räume pro IP, falsche
+Raum-Codes pro IP (gegen Durchprobieren), Nachrichten pro Verbindung, Nachrichtengrösse und
+die Anzahl Räume insgesamt. Die Werte stehen in `server/limits.js`.
+
+Hinter einem Proxy sieht der Server nur dessen Adresse. Die echte Client-IP liest er dann aus
+dem Header in `CLIENT_IP_HEADER`. Auf **Render** (`RENDER=true`) ist das automatisch
+`cf-connecting-ip`, den Cloudflare vor Render setzt. Fehlt der Header, gelten die Limits pro
+Verbindung statt pro IP.
 
 ## Spielen
 
@@ -92,7 +103,8 @@ FTN/
 ├── server/
 │   ├── index.js   # Express- + Socket.io-Server: Räume, Verbindungen, Events
 │   ├── game.js    # Spiellogik als Zustandsmaschine (Ansagen, Stiche, Wertung)
-│   └── deck.js    # 36-Karten-Deck und Mischen
+│   ├── deck.js    # 36-Karten-Deck und Mischen
+│   └── limits.js  # Grenzen gegen Missbrauch (Verbindungen, Räume, Nachrichten)
 ├── public/
 │   ├── index.html # Single-Page-Client (Start, Lobby, Spiel)
 │   ├── app.js     # Client-Logik und Socket.io-Anbindung
@@ -101,8 +113,9 @@ FTN/
 │   ├── icon.svg   # App-Icon
 │   └── manifest.webmanifest # «Zum Home-Bildschirm» (PWA-Manifest)
 ├── test/
-│   ├── game.test.js # Unit-Tests der Spiellogik
-│   └── e2e.test.js  # End-to-End-Test über den echten Server
+│   ├── game.test.js   # Unit-Tests der Spiellogik
+│   ├── server.test.js # Unit-Tests für Namen, Mischen und Limits
+│   └── e2e.test.js    # End-to-End-Tests über den echten Server
 ├── SPIELANLEITUNG.md
 └── package.json
 ```
@@ -113,5 +126,6 @@ FTN/
 npm test
 ```
 
-Führt die Unit-Tests der Spiellogik (`test/game.test.js`) sowie den End-to-End-Test aus, der
-drei Clients über den echten Server ein komplettes Spiel durchspielen lässt (`test/e2e.test.js`).
+Führt die Unit-Tests (`test/game.test.js`, `test/server.test.js`) sowie die End-to-End-Tests
+über den echten Server aus (`test/e2e.test.js`): ein komplettes Spiel mit drei Clients,
+Reconnect, Host-Vertretung, Spielende mit Offline-Spielern und die Limits gegen Missbrauch.

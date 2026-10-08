@@ -27,6 +27,8 @@ const store = {
 };
 const token = () => store.get('ftn_token');
 
+const NO_ANSWER = 'Keine Antwort vom Server – bitte nochmals versuchen.';
+
 /**
  * Sendet an den Server. `done(res)` kommt garantiert – auch bei Verbindungsabbruch
  * oder Timeout. (Ein normaler Ack-Callback wird von socket.io beim Trennen still
@@ -34,7 +36,7 @@ const token = () => store.get('ftn_token');
  */
 function request(event, data, done) {
   socket.timeout(ACK_TIMEOUT_MS).emit(event, data, (err, res) => {
-    done(err || !res ? { ok: false, error: 'Keine Antwort vom Server – bitte nochmals versuchen.' } : res);
+    done(err || !res ? { ok: false, error: NO_ANSWER } : res);
   });
 }
 
@@ -136,13 +138,20 @@ function readName() {
   return name;
 }
 
-/** Raum erstellen oder beitreten; beide Knöpfe sind bis zur Antwort gesperrt. */
+/**
+ * Raum erstellen oder beitreten; beide Knöpfe sind bis zur Antwort gesperrt.
+ * Bewusst ohne request(): Auch eine verspätete Antwort muss das Token noch
+ * speichern, sonst sässe man ohne Token im Raum. Der Timer gibt nur die Knöpfe frei.
+ */
 function enterRoom(event, data) {
   const buttons = [$('btn-create'), $('btn-join')];
   if (buttons.some((b) => b.disabled)) return;
+  const unlock = () => { for (const b of buttons) b.disabled = false; };
   for (const b of buttons) b.disabled = true;
-  request(event, data, (res) => {
-    for (const b of buttons) b.disabled = false;
+  const timer = setTimeout(() => { unlock(); toast(NO_ANSWER); }, ACK_TIMEOUT_MS);
+  socket.emit(event, data, (res) => {
+    clearTimeout(timer);
+    unlock();
     if (!res.ok) return toast(res.error);
     store.set('ftn_token', res.token);
     history.replaceState(null, '', location.pathname);
@@ -748,22 +757,27 @@ function showEventOverlay(e) {
 
 // ---------- Socket ----------
 
-socket.on('connect', () => {
-  $('conn-banner').classList.add('hidden');
-  if (!token()) {
-    if (!state) show('screen-start');
-    return;
-  }
+function rejoin() {
   // Bewusst ohne request(): Ein Timeout darf das Token nicht löschen – geht die
   // Antwort verloren, versucht es der nächste 'connect' ohnehin erneut.
   socket.emit('rejoin', { token: token() }, (res) => {
-    if (!res.ok) {
-      store.del('ftn_token');
-      if (state) toast('Du bist nicht mehr im Raum.', 'info');
-      state = null;
-      show('screen-start');
+    if (res.ok) return;
+    if (!res.gone) {
+      // Vorübergehender Fehler (z. B. zu viele Anfragen): gleich nochmals versuchen
+      setTimeout(() => { if (socket.connected && token()) rejoin(); }, 3000);
+      return;
     }
+    store.del('ftn_token');
+    if (state) toast('Du bist nicht mehr im Raum.', 'info');
+    state = null;
+    show('screen-start');
   });
+}
+
+socket.on('connect', () => {
+  $('conn-banner').classList.add('hidden');
+  if (token()) rejoin();
+  else if (!state) show('screen-start');
 });
 
 socket.on('state', (st) => {
@@ -797,6 +811,13 @@ socket.on('state', (st) => {
 
 socket.on('disconnect', () => {
   if (state) $('conn-banner').classList.remove('hidden');
+});
+
+// Server nicht erreichbar oder Verbindung abgelehnt (z. B. zu viele Verbindungen):
+// socket.io versucht es selbst erneut – ohne Hinweis würde «Verbinde …» aber
+// endlos drehen. Mitten im Spiel zeigt schon das Verbindungs-Banner den Zustand.
+socket.on('connect_error', () => {
+  if (!state) toast('Keine Verbindung zum Server – neuer Versuch läuft …', 'info');
 });
 
 socket.on('roomClosed', () => {
