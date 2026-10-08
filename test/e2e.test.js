@@ -249,3 +249,71 @@ test('E2E: Ist der Host offline, darf ein anderer Spieler weiterschalten', async
     assert.equal((await emitAsync(b, 'leaveRoom', { token: jb.token })).ok, false);
   } finally { ctx.stop(); }
 });
+
+test('E2E: Ein Socket gehört zu höchstens einem Raum (Doppeltipp)', { timeout: 10000 }, async () => {
+  const ctx = await startServer();
+  try {
+    const a = ctx.connect();
+    const created = await emitAsync(a, 'createRoom', { name: 'Anna' });
+    assert.ok(created.ok, created.error);
+    const again = await emitAsync(a, 'createRoom', { name: 'Anna' });
+    assert.equal(again.ok, false);
+    assert.equal(ctx.rooms.size, 1);
+
+    const b = ctx.connect();
+    await emitAsync(b, 'joinRoom', { name: 'Beni', code: created.code });
+    assert.equal((await emitAsync(b, 'joinRoom', { name: 'Beni2', code: created.code })).ok, false);
+    const c = ctx.connect();
+    await emitAsync(c, 'joinRoom', { name: 'Cleo', code: created.code });
+    await emitAsync(a, 'startGame', { token: created.token });
+
+    // Trennt Anna, ist sie offline – und Beni übernimmt die Host-Knöpfe
+    const promoted = nextState(b, (st) => st.isHost);
+    a.close();
+    const st = await promoted;
+    assert.equal(st.players.find((p) => p.name === 'Anna').connected, false);
+  } finally { ctx.stop(); }
+});
+
+test('E2E: Nach Spielende werden Offline-Spieler entfernt bzw. es geht zurück zur Lobby', { timeout: 10000 }, async () => {
+  const ctx = await startServer();
+  try {
+    const [a, b, c, d] = [ctx.connect(), ctx.connect(), ctx.connect(), ctx.connect()];
+    const created = await emitAsync(a, 'createRoom', { name: 'Anna' });
+    const tok = created.token;
+    await emitAsync(b, 'joinRoom', { name: 'Beni', code: created.code });
+    await emitAsync(c, 'joinRoom', { name: 'Cleo', code: created.code });
+    await emitAsync(d, 'joinRoom', { name: 'Dani', code: created.code });
+    await emitAsync(a, 'startGame', { token: tok });
+    const room = ctx.rooms.get(created.code);
+    room.game._endGame();
+
+    // Dani ist weg: «Nochmal spielen» startet ohne sie
+    let offline = nextState(a, (st) => st.players.some((p) => !p.connected));
+    d.close();
+    await offline;
+    const restarted = nextState(a, (st) => st.screen === 'game' && st.phase === 'bidding');
+    assert.ok((await emitAsync(a, 'restartGame', { token: tok })).ok);
+    assert.deepEqual((await restarted).players.map((p) => p.name), ['Anna', 'Beni', 'Cleo']);
+
+    // Cleo ist auch weg: zu wenige online -> nur noch zurück zur Lobby
+    room.game._endGame();
+    offline = nextState(a, (st) => st.players.some((p) => !p.connected));
+    c.close();
+    await offline;
+    const tooFew = await emitAsync(a, 'restartGame', { token: tok });
+    assert.equal(tooFew.ok, false);
+    assert.equal(room.game.phase, 'gameOver');
+
+    const lobby = nextState(a, (st) => st.screen === 'lobby');
+    assert.ok((await emitAsync(a, 'backToLobby', { token: tok })).ok);
+    await lobby;
+    const e = ctx.connect();
+    assert.ok((await emitAsync(e, 'joinRoom', { name: 'Emil', code: created.code })).ok);
+
+    // Cleo ist noch in der Schonfrist – der Start lässt sie weg
+    const started = nextState(a, (st) => st.screen === 'game');
+    assert.ok((await emitAsync(a, 'startGame', { token: tok })).ok);
+    assert.deepEqual((await started).players.map((p) => p.name).sort(), ['Anna', 'Beni', 'Emil']);
+  } finally { ctx.stop(); }
+});

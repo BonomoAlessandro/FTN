@@ -31,11 +31,11 @@ function createApp(opts = {}) {
   const rooms = new Map();
 
   function makeCode() {
-    let code;
-    do {
-      code = Array.from({ length: 4 }, () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]).join('');
-    } while (rooms.has(code));
-    return code;
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const code = Array.from({ length: 4 }, () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]).join('');
+      if (!rooms.has(code)) return code;
+    }
+    throw new GameError('Gerade sind keine Räume frei. Bitte später nochmals versuchen.');
   }
 
   function findByToken(token) {
@@ -61,6 +61,23 @@ function createApp(opts = {}) {
     return hostOf(room) === player;
   }
 
+  /**
+   * Der Spieler, den dieser Socket gerade steuert (höchstens einer). Ungültig, sobald
+   * der Raum weg ist, der Spieler entfernt wurde oder ein neuerer Socket übernommen hat.
+   */
+  function memberOf(socket) {
+    const m = socket.data.member;
+    if (!m || rooms.get(m.room.code) !== m.room) return null;
+    if (!m.room.players.includes(m.player) || m.player.socketId !== socket.id) return null;
+    return m;
+  }
+
+  function bindSocket(socket, room, player) {
+    player.socketId = socket.id;
+    player.connected = true;
+    socket.data.member = { room, player };
+  }
+
   function addPlayer(room, name, socket) {
     if (room.players.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
       throw new GameError('Dieser Name ist im Raum schon vergeben.');
@@ -69,10 +86,11 @@ function createApp(opts = {}) {
       token: crypto.randomBytes(16).toString('hex'),
       pid: `p${room.nextPid++}`,
       name,
-      socketId: socket.id,
-      connected: true,
+      socketId: null,
+      connected: false,
       leaveTimer: null,
     };
+    bindSocket(socket, room, player);
     room.players.push(player);
     return player;
   }
@@ -86,6 +104,42 @@ function createApp(opts = {}) {
     }
     if (room.hostToken === player.token) room.hostToken = room.players[0].token;
     broadcast(room);
+  }
+
+  /**
+   * In der Lobby wird ein Getrennter erst nach einer Schonfrist entfernt,
+   * damit eine kurze Bildschirmsperre nicht den Platz kostet.
+   */
+  function scheduleLobbyLeave(room, player) {
+    clearTimeout(player.leaveTimer);
+    player.leaveTimer = setTimeout(() => {
+      player.leaveTimer = null;
+      if (rooms.get(room.code) === room && !room.game && !player.connected) {
+        removePlayer(room, player);
+      }
+    }, lobbyGraceMs);
+    player.leaveTimer.unref();
+  }
+
+  function markOffline(room, player) {
+    player.socketId = null;
+    player.connected = false;
+    if (!room.game) scheduleLobbyLeave(room, player);
+    broadcast(room);
+  }
+
+  /**
+   * Vor einem neuen Spiel: Wer offline ist, würde das Spiel blockieren (alle warten
+   * auf seine Ansage) – er wird aus dem Raum entfernt. `actor` ist der aktive Host.
+   */
+  function dropOffline(room, actor) {
+    const online = room.players.filter((p) => p.connected);
+    if (online.length < MIN_PLAYERS) {
+      throw new GameError(`Es braucht mindestens ${MIN_PLAYERS} Spieler, die online sind.`);
+    }
+    for (const p of room.players) clearTimeout(p.leaveTimer);
+    if (!online.some((p) => p.token === room.hostToken)) room.hostToken = actor.token;
+    room.players = online;
   }
 
   function lobbyPayload(room, viewer) {
@@ -111,6 +165,7 @@ function createApp(opts = {}) {
     view.screen = 'game';
     view.roomCode = room.code;
     view.isHost = viewer === host;
+    view.minPlayers = MIN_PLAYERS;
     for (const pl of view.players) {
       const rp = room.players.find((q) => q.pid === pl.id);
       pl.connected = rp ? rp.connected : false;
@@ -149,8 +204,16 @@ function createApp(opts = {}) {
       if (typeof ack === 'function') ack({ ok: true, ...extra });
     };
 
+    // Ein Socket gehört zu höchstens einem Raum. Sonst würde z. B. ein Doppeltipp
+    // auf «Raum erstellen» einen zweiten Raum anlegen, und beim Trennen bliebe der
+    // Spieler im ersten Raum für immer «online» (keine Host-Vertretung).
+    const requireNoRoom = () => {
+      if (memberOf(socket)) throw new GameError('Du bist bereits in einem Raum.');
+    };
+
     socket.on('createRoom', (data, ack) => {
       try {
+        requireNoRoom();
         const name = cleanName(data && data.name);
         const room = {
           code: makeCode(),
@@ -170,6 +233,7 @@ function createApp(opts = {}) {
 
     socket.on('joinRoom', (data, ack) => {
       try {
+        requireNoRoom();
         const name = cleanName(data && data.name);
         const code = String((data && data.code) || '').trim().toUpperCase();
         const room = rooms.get(code);
@@ -187,10 +251,11 @@ function createApp(opts = {}) {
       try {
         const found = findByToken(data && data.token);
         if (!found) throw new GameError('Sitzung nicht gefunden.');
+        const previous = memberOf(socket);
+        if (previous && previous.player !== found.player) markOffline(previous.room, previous.player);
         clearTimeout(found.player.leaveTimer);
         found.player.leaveTimer = null;
-        found.player.socketId = socket.id;
-        found.player.connected = true;
+        bindSocket(socket, found.room, found.player);
         ok(ack, { code: found.room.code });
         broadcast(found.room);
       } catch (err) { fail(ack, err); }
@@ -242,10 +307,9 @@ function createApp(opts = {}) {
     socket.on('startGame', gameAction((room, player) => {
       if (!isHost(room, player)) throw new GameError('Nur der Host kann das Spiel starten.');
       if (room.game) throw new GameError('Das Spiel läuft bereits.');
-      if (room.players.length < MIN_PLAYERS) throw new GameError(`Es braucht mindestens ${MIN_PLAYERS} Spieler.`);
+      dropOffline(room, player);
       // Das allererste Spiel startet ein zufälliger Spieler (nicht zwingend der Host).
       room.startOffset = Math.floor(Math.random() * room.players.length);
-      for (const p of room.players) clearTimeout(p.leaveTimer);
       newGame(room);
     }));
 
@@ -273,33 +337,26 @@ function createApp(opts = {}) {
     socket.on('restartGame', gameAction((room, player) => {
       if (!room.game || room.game.phase !== 'gameOver') throw new GameError('Das Spiel ist noch nicht zu Ende.');
       if (!isHost(room, player)) throw new GameError('Nur der Host kann ein neues Spiel starten.');
-      if (room.players.length < MIN_PLAYERS) throw new GameError(`Es braucht mindestens ${MIN_PLAYERS} Spieler.`);
+      dropOffline(room, player);
       // Jedes weitere Spiel rückt den Startspieler um einen Platz weiter.
       room.startOffset = (room.startOffset + 1) % room.players.length;
       newGame(room);
     }));
 
-    socket.on('disconnect', () => {
-      for (const room of rooms.values()) {
-        const player = room.players.find((p) => p.socketId === socket.id);
-        if (!player) continue;
-        player.socketId = null;
-        player.connected = false;
-        if (!room.game) {
-          // In der Lobby wird ein Getrennter erst nach einer Schonfrist entfernt,
-          // damit eine kurze Bildschirmsperre nicht den Platz kostet.
-          clearTimeout(player.leaveTimer);
-          player.leaveTimer = setTimeout(() => {
-            player.leaveTimer = null;
-            if (rooms.get(room.code) === room && !room.game && !player.connected) {
-              removePlayer(room, player);
-            }
-          }, lobbyGraceMs);
-          player.leaveTimer.unref();
-        }
-        broadcast(room);
-        break;
+    // Nach Spielende zurück in die Lobby, z. B. wenn zu wenige online sind:
+    // Dort können Neue beitreten, Offline-Spieler fallen nach der Schonfrist raus.
+    socket.on('backToLobby', gameAction((room, player) => {
+      if (!room.game || room.game.phase !== 'gameOver') throw new GameError('Das Spiel ist noch nicht zu Ende.');
+      if (!isHost(room, player)) throw new GameError('Nur der Host kann zurück zur Lobby.');
+      room.game = null;
+      for (const p of room.players) {
+        if (!p.connected) scheduleLobbyLeave(room, p);
       }
+    }));
+
+    socket.on('disconnect', () => {
+      const m = memberOf(socket);
+      if (m) markOffline(m.room, m.player);
     });
   });
 

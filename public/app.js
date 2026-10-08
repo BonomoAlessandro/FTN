@@ -7,6 +7,7 @@ const $ = (id) => document.getElementById(id);
 const { cardEl, cardHtml } = Cards;
 
 const OVERLAY_MS = 2600;
+const ACK_TIMEOUT_MS = 8000;
 
 let state = null;
 let selectedCardId = null;
@@ -26,9 +27,31 @@ const store = {
 };
 const token = () => store.get('ftn_token');
 
-function send(event, data = {}) {
-  socket.emit(event, { token: token(), ...data }, (res) => {
-    if (res && !res.ok) toast(res.error || 'Fehler');
+/**
+ * Sendet an den Server. `done(res)` kommt garantiert – auch bei Verbindungsabbruch
+ * oder Timeout. (Ein normaler Ack-Callback wird von socket.io beim Trennen still
+ * verworfen; gesperrte Knöpfe blieben dann für immer gesperrt.)
+ */
+function request(event, data, done) {
+  socket.timeout(ACK_TIMEOUT_MS).emit(event, data, (err, res) => {
+    done(err || !res ? { ok: false, error: 'Keine Antwort vom Server – bitte nochmals versuchen.' } : res);
+  });
+}
+
+function send(event, data = {}, done = () => {}) {
+  request(event, { token: token(), ...data }, (res) => {
+    if (!res.ok) toast(res.error || 'Fehler');
+    done(res);
+  });
+}
+
+/** Wie send(), aber der Knopf bleibt bis zur Antwort gesperrt (gegen Doppeltipps). */
+function sendFrom(btn, event, data = {}, done = () => {}) {
+  if (btn.disabled) return;
+  btn.disabled = true;
+  send(event, data, (res) => {
+    btn.disabled = false;
+    done(res);
   });
 }
 
@@ -113,19 +136,27 @@ function readName() {
   return name;
 }
 
-function enterRoom(res) {
-  if (!res.ok) return toast(res.error);
-  store.set('ftn_token', res.token);
-  history.replaceState(null, '', location.pathname);
+/** Raum erstellen oder beitreten; beide Knöpfe sind bis zur Antwort gesperrt. */
+function enterRoom(event, data) {
+  const buttons = [$('btn-create'), $('btn-join')];
+  if (buttons.some((b) => b.disabled)) return;
+  for (const b of buttons) b.disabled = true;
+  request(event, data, (res) => {
+    for (const b of buttons) b.disabled = false;
+    if (!res.ok) return toast(res.error);
+    store.set('ftn_token', res.token);
+    history.replaceState(null, '', location.pathname);
+  });
 }
 
 $('btn-create').addEventListener('click', () => {
   const name = readName();
-  if (name) socket.emit('createRoom', { name }, enterRoom);
+  if (name) enterRoom('createRoom', { name });
 });
 
 $('form-start').addEventListener('submit', (e) => {
   e.preventDefault();
+  if ($('btn-join').disabled) return;
   const code = $('input-code').value.trim().toUpperCase();
   if (code.length !== 4) {
     toast('Der Raum-Code hat 4 Zeichen.');
@@ -133,7 +164,7 @@ $('form-start').addEventListener('submit', (e) => {
     return;
   }
   const name = readName();
-  if (name) socket.emit('joinRoom', { name, code }, enterRoom);
+  if (name) enterRoom('joinRoom', { name, code });
 });
 
 $('input-code').addEventListener('input', (e) => {
@@ -202,13 +233,33 @@ $('btn-history').addEventListener('click', () => {
 $('btn-rules').addEventListener('click', openRules);
 $('btn-game-rules').addEventListener('click', openRules);
 
-function leaveRoom() {
-  send('leaveRoom');
-  store.del('ftn_token');
-  state = null;
-  show('screen-start');
+/** Erst austreten, wenn der Server zustimmt – lehnt er ab (Spiel läuft schon), bleibt man drin. */
+function leaveRoom(e) {
+  sendFrom(e.currentTarget, 'leaveRoom', {}, (res) => {
+    if (!res.ok) return;
+    store.del('ftn_token');
+    state = null;
+    show('screen-start');
+  });
 }
 $('btn-leave').addEventListener('click', leaveRoom);
+
+/** Startet ein (neues) Spiel. Wer offline ist, würde es blockieren und wird nach Rückfrage entfernt. */
+async function startGameFrom(btn, event, st) {
+  const offline = st.players.filter((p) => !p.connected).map((p) => p.name);
+  if (offline.length) {
+    const names = offline.join(' & ');
+    const one = offline.length === 1;
+    const yes = await askConfirm({
+      icon: '📵',
+      title: `Ohne ${names} spielen?`,
+      text: `${names} ${one ? 'ist' : 'sind'} offline und ${one ? 'wird' : 'werden'} aus dem Raum entfernt.`,
+      ok: 'Starten',
+    });
+    if (!yes) return;
+  }
+  sendFrom(btn, event);
+}
 
 $('btn-share').addEventListener('click', async () => {
   if (!state) return;
@@ -248,11 +299,11 @@ function renderLobby(st) {
     .join('');
   const action = $('lobby-action');
   if (st.isHost) {
-    const missing = st.minPlayers - st.players.length;
+    const missing = st.minPlayers - st.players.filter((p) => p.connected).length;
     action.innerHTML = `<button id="btn-start" class="btn primary" ${missing > 0 ? 'disabled' : ''}>Spiel starten</button>` +
       (missing > 0 ? `<p class="hint" style="margin-top:8px">Es fehlen noch ${plural(missing, 'Spieler', 'Spieler')}.</p>` : '');
     const btn = $('btn-start');
-    btn.addEventListener('click', () => send('startGame'));
+    btn.addEventListener('click', () => startGameFrom(btn, 'startGame', st));
   } else {
     action.innerHTML = '<p class="hint">Warte, bis der Host das Spiel startet …</p>';
   }
@@ -460,14 +511,10 @@ function renderActions(st) {
         if (bidPending || selectedBid === null) return;
         bidPending = true;
         renderActions(st);
-        socket.emit('bid', { token: token(), value: selectedBid }, (res) => {
+        send('bid', { value: selectedBid }, (res) => {
           bidPending = false;
-          if (res && res.ok) {
-            selectedBid = null;
-          } else {
-            toast((res && res.error) || 'Fehler');
-            if (state) renderActions(state);
-          }
+          if (res.ok) selectedBid = null;
+          else if (state) renderActions(state);
         });
       });
     }
@@ -488,7 +535,7 @@ function renderActions(st) {
     if (st.isHost) {
       const last = st.roundNumber >= st.totalRounds;
       area.innerHTML = `<button id="btn-next" class="btn primary">${last ? 'Endstand anzeigen' : 'Nächste Runde'}</button>`;
-      $('btn-next').addEventListener('click', () => send('nextRound'));
+      $('btn-next').addEventListener('click', (e) => sendFrom(e.currentTarget, 'nextRound'));
     } else {
       area.innerHTML = '<p class="hint">Warte auf den Host …</p>';
     }
@@ -496,9 +543,20 @@ function renderActions(st) {
   }
 
   if (st.phase === 'gameOver') {
-    area.innerHTML = (st.isHost ? '<button id="btn-restart" class="btn primary">Nochmal spielen</button>' : '') +
-      '<button id="btn-exit" class="btn ghost small">Raum verlassen</button>';
-    if (st.isHost) $('btn-restart').addEventListener('click', () => send('restartGame'));
+    let html = '';
+    if (st.isHost) {
+      const enough = st.players.filter((p) => p.connected).length >= st.minPlayers;
+      html = `<button id="btn-restart" class="btn primary" ${enough ? '' : 'disabled'}>Nochmal spielen</button>` +
+        (enough ? '' : '<p class="hint">Zu wenige Spieler online – in der Lobby können Neue beitreten.</p>');
+    }
+    area.innerHTML = html + '<div class="action-row">' +
+      (st.isHost ? '<button id="btn-lobby" class="btn ghost small">Zurück zur Lobby</button>' : '') +
+      '<button id="btn-exit" class="btn ghost small">Raum verlassen</button></div>';
+    if (st.isHost) {
+      const restart = $('btn-restart');
+      restart.addEventListener('click', () => startGameFrom(restart, 'restartGame', st));
+      $('btn-lobby').addEventListener('click', (e) => sendFrom(e.currentTarget, 'backToLobby'));
+    }
     $('btn-exit').addEventListener('click', leaveRoom);
   }
 }
@@ -696,9 +754,12 @@ socket.on('connect', () => {
     if (!state) show('screen-start');
     return;
   }
+  // Bewusst ohne request(): Ein Timeout darf das Token nicht löschen – geht die
+  // Antwort verloren, versucht es der nächste 'connect' ohnehin erneut.
   socket.emit('rejoin', { token: token() }, (res) => {
     if (!res.ok) {
       store.del('ftn_token');
+      if (state) toast('Du bist nicht mehr im Raum.', 'info');
       state = null;
       show('screen-start');
     }

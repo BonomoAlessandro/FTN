@@ -18,6 +18,9 @@ im Spiel über den Button **📖 Spielanleitung** abrufbar.
   per Sitzungs-Token zurück ins laufende Spiel. In der Lobby bleibt der Platz 90 Sekunden reserviert.
 - **Host-Vertretung**: Ist der Host offline, übernimmt der nächste verbundene Spieler dessen Knöpfe
   (z. B. «Nächste Runde»), damit das Spiel nie hängen bleibt.
+- **Neues Spiel ohne Abwesende**: «Spiel starten» und «Nochmal spielen» lassen Spieler, die offline
+  sind, nach Rückfrage weg. Sind nach Spielende zu wenige online, führt «Zurück zur Lobby» in den
+  Warteraum, wo Neue beitreten können.
 - **Vollständige Spielmechanik**: Ansage-Regeln, Stich-Duelle bei Gleichstand, Blindrunden
   (1-Karten-Runden) und Zufallsziehen beim letzten Stich.
 - **Mobile-first**: Reine HTML/CSS/JS-Oberfläche ohne Build-Schritt, optimiert für Handys

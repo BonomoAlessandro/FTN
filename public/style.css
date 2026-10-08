@@ -200,12 +200,17 @@ input[type="text"]:focus { border-color: var(--gold); }
 .chip .flag { position: absolute; top: -8px; right: -5px; font-size: 0.9rem; }
 
 #table-area {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  display: flex; flex-direction: column; align-items: center;
   gap: 12px;
   padding: 8px 12px;
   overflow-y: auto;
   min-height: 0;
 }
+/* Vertikal zentrieren über auto-Ränder statt justify-content: center – sonst wird
+   bei zu viel Inhalt (z. B. 7 Spieler) der obere Teil abgeschnitten und ist nicht
+   mehr erreichbar. Auto-Ränder fallen bei Überlauf einfach auf 0. */
+#table-area > :first-child { margin-top: auto; }
+#table-area > :last-child { margin-bottom: auto; }
 #table-area h3 { margin: 0; text-align: center; }
 
 .felt-ring {
@@ -246,6 +251,7 @@ input[type="text"]:focus { border-color: var(--gold); }
 }
 #action-area:empty { display: none; }
 #action-area .btn { max-width: 340px; }
+.action-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 
 .bid-buttons { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
 .bid-btn {
