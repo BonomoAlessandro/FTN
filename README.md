@@ -5,7 +5,7 @@ Spieler sagt vor jeder Runde an, wie viele Stiche er machen wird – wer richtig
 Gespielt wird im Browser über einen gemeinsamen Raum-Code, ideal mit dem Handy am selben Tisch.
 
 Die vollständigen Spielregeln stehen in [SPIELANLEITUNG.md](SPIELANLEITUNG.md) und sind auch
-im Spiel über den Button **📖 Spielanleitung** abrufbar.
+im Spiel über den Knopf **Spielregeln** abrufbar.
 
 ## Funktionen
 
@@ -24,12 +24,17 @@ im Spiel über den Button **📖 Spielanleitung** abrufbar.
 - **Vollständige Spielmechanik**: Ansage-Regeln, Stich-Duelle bei Gleichstand, Blindrunden
   (1-Karten-Runden) und Zufallsziehen beim letzten Stich.
 - **Mobile-first**: Reine HTML/CSS/JS-Oberfläche ohne Build-Schritt, optimiert für Handys
-  (Safe-Areas, Querformat, Vibration wenn man dran ist, Bildschirm bleibt während des Spiels wach).
-  Lässt sich als App auf den Homescreen legen.
-- **Verlauf der Ansagen**: Über «📜 Verlauf» sieht jeder jederzeit, wer in welcher der 10 Runden
-  wie viele Stiche angesagt und gemacht hat – inkl. Hinweis, welche Zahl nach Regel 2 gesperrt ist.
-- **Gezeichnete Jasskarten**: Alle 36 Karten sind skalierbare SVGs mit Schweizer Farbzeichen
-  (Rosen, Schellen, Eicheln, Schilten), Pip-Bildern und Figuren für Under, Ober und König.
+  (Safe-Areas, Vibration wenn man dran ist, Bildschirm bleibt während des Spiels wach).
+  Alles, was man gerade tun muss, liegt im Bedienfeld unten im Daumenbereich; im Querformat
+  steht es rechts neben dem Tisch. Lässt sich als App auf den Homescreen legen.
+- **Hilfen beim Spielen**: Gesperrte Ansagen nennen den Grund («mit 2 ergäbe die Summe genau 5»),
+  beim Antippen einer Karte steht sofort, ob sie die Führung übernimmt, und der Rundenplan
+  oben zeigt jederzeit, welche Runde läuft und wann die Blindrunden kommen.
+- **Punkte & Verlauf**: Zwischenstand und für jede der 10 Runden, wer wie viele Stiche angesagt
+  und gemacht hat – inkl. Hinweis, welche Zahl nach Regel 2 gesperrt ist. Treffer und
+  Fehlschläge sind mit Symbol und Farbe markiert.
+- **Jasskarten mit Schweizer Farbzeichen** (Rosen, Schellen, Eicheln, Schilten): Weil nur der Wert
+  zählt, steht er gross auf der Karte, ein Balken zeigt die Stärke von 6 bis Ass.
 
 ## Technologie
 
@@ -108,8 +113,9 @@ FTN/
 ├── public/
 │   ├── index.html # Single-Page-Client (Start, Lobby, Spiel)
 │   ├── app.js     # Client-Logik und Socket.io-Anbindung
-│   ├── cards.js   # Jasskarten als SVG (Farbzeichen-Sprite liegt in index.html)
-│   ├── style.css  # Mobile-first-Styling
+│   ├── cards.js   # Jasskarten (Farbzeichen-Sprite liegt in index.html)
+│   ├── style.css  # Mobile-first-Styling inkl. Querformat
+│   ├── fonts/     # Figtree und Bricolage Grotesque (selbst gehostet, SIL Open Font License)
 │   ├── icon.svg   # App-Icon
 │   └── manifest.webmanifest # «Zum Home-Bildschirm» (PWA-Manifest)
 ├── test/

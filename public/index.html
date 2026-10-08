@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0c3326">
+  <meta name="theme-color" content="#0b2e24">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -12,23 +12,14 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="preload" href="fonts/figtree-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/bricolage-grotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <!-- SVG-Sprite: Farbsymbole der Schweizer Jasskarten (nicht display:none, sonst fehlen Verläufe) -->
+  <!-- SVG-Sprite: Farbsymbole der Schweizer Jasskarten -->
   <svg class="sprite" aria-hidden="true" focusable="false">
-    <defs>
-      <linearGradient id="card-paper" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#fffdf7"/>
-        <stop offset="1" stop-color="#f4eddb"/>
-      </linearGradient>
-      <pattern id="card-back-pattern" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-        <rect width="10" height="10" fill="#8f252b"/>
-        <path d="M0 5 H10 M5 0 V10" stroke="#b8454b" stroke-width="1.4"/>
-      </pattern>
-    </defs>
-
     <symbol id="suit-rosen" viewBox="0 0 40 40">
       <path d="M20 12 L31.5 4.2 L27.6 17.5 L38.6 26 L24.7 26.5 L20 39.5 L15.3 26.5 L1.4 26 L12.4 17.5 L8.5 4.2 Z" fill="#2e7d32" stroke="#1b4d1e" stroke-width=".8" stroke-linejoin="round"/>
       <g fill="#d0342c" stroke="#7f1512" stroke-width="1">
@@ -41,7 +32,6 @@
       <circle cx="20" cy="20" r="6.6" fill="#f6c343" stroke="#a36b00"/>
       <circle cx="20" cy="20" r="2.4" fill="#d0342c"/>
     </symbol>
-
     <symbol id="suit-schellen" viewBox="0 0 40 40">
       <circle cx="20" cy="4.6" r="3" fill="none" stroke="#7a4d00" stroke-width="2"/>
       <circle cx="20" cy="22" r="15" fill="#f2b705" stroke="#7a4d00" stroke-width="1.5"/>
@@ -50,7 +40,6 @@
       <path d="M13 30.5 Q20 34.5 27 30.5" fill="none" stroke="#5a3800" stroke-width="2.2" stroke-linecap="round"/>
       <ellipse cx="14" cy="12.5" rx="3.6" ry="2.2" fill="#fff" opacity=".55"/>
     </symbol>
-
     <symbol id="suit-eicheln" viewBox="0 0 40 40">
       <path d="M22 7 C27 1 34 1 38.5 4.5 C34.5 9.5 27 10.5 22 7 Z" fill="#3a8a3d" stroke="#1b4d1e" stroke-width=".8"/>
       <path d="M20 10 C20 6.5 21 3.5 23.5 2" fill="none" stroke="#4a2a0a" stroke-width="2.2" stroke-linecap="round"/>
@@ -59,7 +48,6 @@
       <path d="M8 21.5 C8 13.5 13 9 20 9 C27 9 32 13.5 32 21.5 C27.5 23.3 12.5 23.3 8 21.5 Z" fill="#7a4a1a" stroke="#4a2a0a" stroke-width="1.2"/>
       <g fill="#a8743a"><circle cx="14" cy="17" r="1.2"/><circle cx="20" cy="14" r="1.2"/><circle cx="26" cy="17" r="1.2"/><circle cx="17" cy="20" r="1.2"/><circle cx="23" cy="20" r="1.2"/></g>
     </symbol>
-
     <symbol id="suit-schilten" viewBox="0 0 40 40">
       <path d="M5.5 4.5 H34.5 V18 C34.5 28 27.5 34.5 20 38.5 C12.5 34.5 5.5 28 5.5 18 Z" fill="#1d4f91" stroke="#0f2c52" stroke-width="1"/>
       <path d="M9.5 8.5 H30.5 V18 C30.5 25.5 25.5 30.5 20 33.8 C14.5 30.5 9.5 25.5 9.5 18 Z" fill="#f2c230"/>
@@ -69,145 +57,236 @@
   </svg>
 
   <!-- Verbindung wird hergestellt -->
-  <section id="screen-loading" class="screen">
+  <section id="screen-loading" class="screen screen-center">
     <div class="spinner" aria-hidden="true"></div>
-    <p class="hint">Verbinde …</p>
+    <p class="muted">Verbinde …</p>
   </section>
 
   <!-- Start -->
-  <section id="screen-start" class="screen hidden">
-    <div id="hero-cards" class="hero-cards" aria-hidden="true"></div>
-    <h1 class="logo">Stichraten</h1>
-    <p class="tagline">Das Jasskarten-Spiel für 3–7 Spieler</p>
-    <form id="form-start" class="stack" autocomplete="off">
-      <label class="field">
-        <span>Dein Name</span>
-        <input id="input-name" type="text" maxlength="16" placeholder="z. B. Anna" enterkeyhint="done">
-      </label>
-      <button id="btn-create" type="button" class="btn primary">Raum erstellen</button>
-      <div class="divider"><span>oder beitreten</span></div>
+  <section id="screen-start" class="screen start hidden">
+    <div id="hero-cards" class="hero" aria-hidden="true"></div>
+    <h1 class="wordmark">Stichraten</h1>
+    <p class="tagline">Sag an, wie viele Stiche du machst. Das Jasskarten-Spiel für 3 bis 7 Leute am selben Tisch.</p>
+    <div class="field">
+      <label for="input-name">Dein Name</label>
+      <input id="input-name" class="input input-light" type="text" maxlength="16" autocomplete="nickname" placeholder="z. B. Anna" enterkeyhint="go">
+    </div>
+    <button id="btn-create" type="button" class="btn btn-primary">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+      Neuen Raum erstellen
+    </button>
+    <div class="divider"><span>oder einem Raum beitreten</span></div>
+    <form id="form-join" class="field" autocomplete="off">
+      <label for="input-code">Raum-Code</label>
       <div class="join-row">
-        <input id="input-code" type="text" maxlength="4" placeholder="CODE" autocapitalize="characters"
-               spellcheck="false" inputmode="text" enterkeyhint="go" aria-label="Raum-Code">
-        <button id="btn-join" type="submit" class="btn">Beitreten</button>
+        <input id="input-code" class="input input-code" type="text" maxlength="4" placeholder="K7QZ" autocapitalize="characters" spellcheck="false" enterkeyhint="go">
+        <button id="btn-join" type="submit" class="btn btn-secondary">Beitreten</button>
       </div>
+      <p class="hint">Den Code zeigt der Host in seinem Warteraum – oder öffne seinen Einladungslink.</p>
     </form>
-    <button id="btn-rules" type="button" class="btn ghost">📖 Spielanleitung</button>
+    <button id="btn-rules" type="button" class="btn-link start-rules">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></svg>
+      Spielregeln
+    </button>
   </section>
 
-  <!-- Lobby -->
-  <section id="screen-lobby" class="screen hidden">
-    <p class="eyebrow">Raum-Code</p>
-    <div id="lobby-code" class="room-code"></div>
-    <button id="btn-share" type="button" class="btn ghost small">🔗 Einladung teilen</button>
-    <div class="stack">
-      <p id="lobby-count" class="eyebrow"></p>
-      <ul id="lobby-players" class="player-list"></ul>
-      <div id="lobby-action"></div>
+  <!-- Warteraum -->
+  <section id="screen-lobby" class="screen lobby hidden">
+    <header class="topbar">
+      <button id="btn-leave" type="button" class="btn-link">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+        Verlassen
+      </button>
+      <button id="btn-lobby-rules" type="button" class="icon-btn" aria-label="Spielregeln">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+      </button>
+    </header>
+    <div class="lobby-scroll">
+      <div class="page-title">
+        <h1>Warteraum</h1>
+        <p>Lade deine Mitspieler mit dem Code ein.</p>
+      </div>
+      <section class="invite" aria-label="Einladung">
+        <span class="label">Raum-Code</span>
+        <span id="lobby-code" class="room-code"></span>
+        <div class="invite-actions">
+          <button id="btn-share" type="button" class="btn btn-light btn-sm">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><path d="m16 6-4-4-4 4"/><path d="M12 2v13"/></svg>
+            Link teilen
+          </button>
+          <button id="btn-copy" type="button" class="btn btn-secondary btn-sm">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Code kopieren
+          </button>
+        </div>
+      </section>
+      <div class="section-head">
+        <h2>Spieler</h2>
+        <span id="lobby-count"></span>
+      </div>
+      <ul id="lobby-players" class="lobby-players"></ul>
     </div>
-    <button id="btn-leave" type="button" class="btn ghost small">Raum verlassen</button>
+    <section id="lobby-dock" class="dock" aria-label="Spiel starten"></section>
   </section>
 
   <!-- Spiel -->
-  <section id="screen-game" class="screen hidden">
-    <header id="game-header">
-      <div id="round-info"></div>
-      <div class="header-buttons">
-        <button id="btn-history" type="button" class="icon-btn wide" aria-label="Verlauf der Ansagen">📜<span class="label"> Verlauf</span></button>
-        <button id="btn-game-rules" type="button" class="icon-btn" aria-label="Spielanleitung">?</button>
-        <button id="btn-close-game" type="button" class="icon-btn danger hidden" aria-label="Raum schliessen">✕</button>
-      </div>
-    </header>
-    <div id="players-bar"></div>
-    <main id="table-area"></main>
-    <div id="status" aria-live="polite"></div>
-    <div id="action-area"></div>
-    <footer id="hand-area"></footer>
+  <section id="screen-game" class="screen game hidden">
+    <div class="game-main">
+      <header class="game-header">
+        <div class="round-title">
+          <div id="round-name" class="round-name"></div>
+          <div id="round-sub" class="round-sub"></div>
+        </div>
+        <button id="btn-history" type="button" class="icon-btn" aria-label="Punkte und Verlauf">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 6h3v1a3 3 0 0 1-3 3"/><path d="M7 6H4v1a3 3 0 0 0 3 3"/></svg>
+        </button>
+        <button id="btn-game-rules" type="button" class="icon-btn" aria-label="Spielregeln">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+        </button>
+        <button id="btn-menu" type="button" class="icon-btn" aria-label="Menü">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
+        </button>
+      </header>
+      <ol id="round-track" class="round-track" aria-label="Rundenplan"></ol>
+      <div id="game-body" class="game-body"></div>
+    </div>
+    <section id="dock" class="dock" aria-label="Deine Aktion"></section>
   </section>
 
-  <!-- Ereignis-Overlay (Stich gewonnen, Duell, Ziehen) – Tippen schliesst -->
-  <div id="overlay" class="hidden" role="dialog" aria-live="assertive">
-    <div id="overlay-content"></div>
-  </div>
+  <!-- Ergebnis eines Stichs, Duells oder Ziehens (liegt auch über offenen Fenstern) -->
+  <dialog id="overlay" class="overlay" aria-labelledby="overlay-title">
+    <div id="overlay-content" class="overlay-content"></div>
+    <button id="overlay-next" type="button" class="btn btn-primary">Weiter</button>
+    <div class="overlay-timer" aria-hidden="true"><span class="overlay-track"><i id="overlay-bar"></i></span><span>schliesst automatisch</span></div>
+  </dialog>
 
-  <div id="conn-banner" class="hidden">Verbindung unterbrochen – verbinde neu …</div>
-  <div id="toast" class="hidden" role="alert"></div>
+  <div id="conn-banner" class="conn-banner hidden" role="status">Verbindung unterbrochen – verbinde neu …</div>
+  <div id="toast" class="toast hidden" role="alert"></div>
+  <div id="live" class="sr-only" aria-live="polite"></div>
 
-  <!-- Verlauf: wer hat in welcher Runde wie viele Stiche angesagt -->
+  <!-- Punkte & Verlauf -->
   <dialog id="history-dialog" class="sheet" aria-labelledby="history-title">
+    <span class="grabber" aria-hidden="true"></span>
     <header class="sheet-head">
-      <span class="grabber" aria-hidden="true"></span>
-      <h2 id="history-title"><span class="sheet-icon" aria-hidden="true">📜</span>Verlauf der Ansagen</h2>
-      <button type="button" class="sheet-close" data-close aria-label="Schliessen">✕</button>
+      <h2 id="history-title">Punkte &amp; Verlauf</h2>
+      <button type="button" class="icon-btn round" data-close aria-label="Schliessen">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
     </header>
     <div class="sheet-body">
-      <div id="history-body"></div>
-      <ul class="legend">
-        <li><span class="swatch num">2<small>1</small></span>Ansage · gemachte Stiche</li>
-        <li><span class="swatch hit"></span>erfüllt</li>
-        <li><span class="swatch miss"></span>verfehlt</li>
-        <li><span class="swatch now"></span>laufende Runde</li>
-        <li><span class="swatch lock">≠2</span>gesperrt (2× nacheinander)</li>
+      <ol id="standings" class="standings" aria-label="Zwischenstand"></ol>
+      <div id="history-body" class="history"></div>
+      <ul class="legend" aria-label="Legende">
+        <li><b>2/1</b> Ansage / gemacht</li>
+        <li class="hit"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span>erfüllt</span></li>
+        <li class="miss"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg><span>verfehlt</span></li>
+        <li class="miss"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>gesperrte Zahl</span></li>
       </ul>
     </div>
   </dialog>
 
   <!-- Spielanleitung -->
   <dialog id="rules-dialog" class="sheet" aria-labelledby="rules-title">
+    <span class="grabber" aria-hidden="true"></span>
     <header class="sheet-head">
-      <span class="grabber" aria-hidden="true"></span>
-      <h2 id="rules-title"><span class="sheet-icon" aria-hidden="true">📖</span>Spielanleitung</h2>
-      <button type="button" class="sheet-close" data-close aria-label="Schliessen">✕</button>
+      <h2 id="rules-title">Spielregeln</h2>
+      <button type="button" class="icon-btn round" data-close aria-label="Schliessen">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
     </header>
     <div class="sheet-body rules">
-      <h3>Karten</h3>
-      <p>36 Jasskarten. Nur der <b>Wert</b> zählt, die Farbe ist egal:<br>
-      <b>6 &lt; 7 &lt; 8 &lt; 9 &lt; 10 &lt; Under &lt; Ober &lt; König &lt; Ass</b><br>
-      Kein Trumpf, kein Bedienzwang. Jeder Wert existiert 4× – Gleichstände sind möglich.</p>
-
-      <h3>Ablauf</h3>
-      <p>10 Runden mit <b>5 → 4 → 3 → 2 → 1 → 1 → 2 → 3 → 4 → 5</b> Karten.
-      Jede Runde: <b>Ansagen → Stiche spielen → Punkte werten</b>. Der Startspieler wechselt jede Runde.</p>
-
-      <h3>Ansagen</h3>
-      <p>Jeder sagt reihum an, wie viele Stiche er macht.</p>
-      <ul>
-        <li><b>Die Summe darf nicht aufgehen:</b> Die Summe aller Ansagen darf nicht gleich der Stichzahl sein – der letzte Ansager ist eingeschränkt. <i>(Ausnahme: 1er-Runden.)</i></li>
-        <li><b>Max. 2× dieselbe Zahl nacheinander:</b> Wer zweimal hintereinander dieselbe Zahl angesagt hat, muss etwas anderes ansagen. Danach ist die Zahl wieder frei.</li>
-      </ul>
-
-      <h3>Stiche</h3>
-      <p>Reihum eine Karte spielen – die höchste gewinnt. Der Gewinner spielt aus.</p>
-      <p><b>Stich-Duell:</b> Bei Gleichstand der höchsten Karte spielen die Beteiligten gleichzeitig verdeckt eine weitere Karte – der Gewinner erhält <b>beide</b> Stiche. Alle Unbeteiligten werfen eine Karte ab. Bei erneutem Gleichstand wird wiederholt (3, 4, … Stiche).</p>
-      <p><b>Letzter Stich:</b> Bei Gleichstand ohne Handkarten ziehen die Beteiligten zufällig eine neue Karte – die höhere gewinnt.</p>
-
-      <h3>Punkte</h3>
-      <ul>
-        <li><b>Ansage korrekt:</b> 10 + Stiche² (0&nbsp;→&nbsp;10, 1&nbsp;→&nbsp;11, 2&nbsp;→&nbsp;14, 3&nbsp;→&nbsp;19, 4&nbsp;→&nbsp;26, 5&nbsp;→&nbsp;35)</li>
-        <li><b>Ansage falsch:</b> −5 Punkte pro Stich Abweichung</li>
-      </ul>
-
-      <h3>Blindrunden (Runde 5 + 6)</h3>
-      <p>Du siehst nur die Karten der <b>anderen</b>, nicht deine eigene. Sage 0 oder 1 an.
-      Einzige Runden, in denen die Summe aufgehen darf.</p>
-
-      <h3>Spielende</h3>
-      <p>Nach Runde 10 gewinnt, wer die meisten Punkte hat.</p>
+      <section>
+        <h3>Kartenwerte</h3>
+        <p>Nur der Wert zählt, die Farbe ist egal. Jeder Wert kommt viermal vor – Gleichstände sind also möglich.</p>
+        <div id="rules-scale" class="rules-scale" role="img" aria-label="Von tief nach hoch: 6, 7, 8, 9, 10, Under, Ober, König, Ass"></div>
+        <div class="rules-axis" aria-hidden="true"><span>tief</span><i></i><span>hoch</span></div>
+        <p class="small">U = Under, O = Ober, K = König, A = Ass. Der Balken unten auf jeder Karte zeigt ihre Stärke.</p>
+      </section>
+      <section>
+        <h3>So läuft eine Runde</h3>
+        <ol class="steps">
+          <li><span class="step-n">1</span><div><b>Ansagen</b><span>Reihum sagt jeder, wie viele Stiche er in dieser Runde machen wird.</span></div></li>
+          <li><span class="step-n">2</span><div><b>Stiche spielen</b><span>Reihum legt jeder eine Karte. Die höchste gewinnt den Stich, der Gewinner spielt als Nächstes aus.</span></div></li>
+          <li><span class="step-n">3</span><div><b>Punkte</b><span>Wer genau so viele Stiche gemacht hat wie angesagt, punktet.</span></div></li>
+        </ol>
+        <div class="plan-box">
+          <span class="small">10 Runden, Karten pro Spieler</span>
+          <div class="plan-chips">
+            <span>5</span><span>4</span><span>3</span><span>2</span>
+            <span class="blind" title="Blindrunde"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-label="Blindrunde"><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 4.2A10 10 0 0 1 12 4c5 0 9 4.5 10 8a12 12 0 0 1-2.9 4.3"/><path d="M6.6 6.6C4.4 8 2.8 10 2 12c1 3.5 5 8 10 8a10 10 0 0 0 4.9-1.3"/></svg></span>
+            <span class="blind" title="Blindrunde"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-label="Blindrunde"><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 4.2A10 10 0 0 1 12 4c5 0 9 4.5 10 8a12 12 0 0 1-2.9 4.3"/><path d="M6.6 6.6C4.4 8 2.8 10 2 12c1 3.5 5 8 10 8a10 10 0 0 0 4.9-1.3"/></svg></span>
+            <span>2</span><span>3</span><span>4</span><span>5</span>
+          </div>
+        </div>
+      </section>
+      <section>
+        <h3>Ansage-Regeln</h3>
+        <div class="rule-card">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 9h14"/><path d="M5 15h14"/><path d="M16 4 8 20"/></svg>
+          <div><b>Die Summe darf nicht aufgehen</b><span>Alle Ansagen zusammen dürfen nicht genau die Anzahl Stiche ergeben. Das schränkt nur den letzten Ansager ein. In Blindrunden gilt die Regel nicht.</span></div>
+        </div>
+        <div class="rule-card">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+          <div><b>Höchstens zweimal dieselbe Zahl</b><span>Wer zweimal hintereinander dieselbe Zahl angesagt hat, muss in der nächsten Runde eine andere wählen.</span></div>
+        </div>
+      </section>
+      <section>
+        <h3 class="with-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6"/><path d="m16 16 4 4"/><path d="m19 21 2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="m5 14 4 4"/><path d="m7 17-3 3"/><path d="m3 19 2 2"/></svg>
+          Gleichstand: Stich-Duell
+        </h3>
+        <p>Haben mehrere die höchste Karte, spielen sie verdeckt eine weitere Karte. Die höhere gewinnt alle Stiche auf dem Tisch. Alle anderen werfen eine Karte ab. Beim letzten Stich entscheidet eine zufällig gezogene Karte.</p>
+      </section>
+      <section>
+        <h3>Punkte</h3>
+        <div class="points-box">
+          <div class="points-row">
+            <span class="dot-icon hit"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>
+            <b>Ansage erfüllt</b>
+            <span class="points-formula hit">10 + Stiche²</span>
+          </div>
+          <div class="points-examples"><span>0 → 10</span><span>1 → 11</span><span>2 → 14</span><span>3 → 19</span><span>4 → 26</span><span>5 → 35</span></div>
+          <i class="sep"></i>
+          <div class="points-row">
+            <span class="dot-icon miss"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span>
+            <b>Daneben</b>
+            <span class="points-formula miss">−5 pro Stich</span>
+          </div>
+          <p class="small indent">Beispiel: 2 angesagt, 0 gemacht ergibt −10.</p>
+        </div>
+      </section>
+      <section>
+        <h3 class="with-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 4.2A10 10 0 0 1 12 4c5 0 9 4.5 10 8a12 12 0 0 1-2.9 4.3"/><path d="M6.6 6.6C4.4 8 2.8 10 2 12c1 3.5 5 8 10 8a10 10 0 0 0 4.9-1.3"/></svg>
+          Blindrunden (Runde 5 und 6)
+        </h3>
+        <p>Du hast nur eine Karte und siehst sie nicht – dafür die Karten aller anderen. Sag 0 oder 1 an. Hier darf die Summe aufgehen.</p>
+      </section>
+      <p class="rules-end">Nach Runde 10 gewinnt, wer die meisten Punkte hat. Bei Gleichstand teilen sich die Spieler den Platz.</p>
     </div>
-    <footer class="sheet-foot">
-      <button type="button" class="btn primary" data-close>Schliessen</button>
-    </footer>
+  </dialog>
+
+  <!-- Menü im Spiel -->
+  <dialog id="menu-dialog" class="sheet compact" aria-labelledby="menu-title">
+    <span class="grabber" aria-hidden="true"></span>
+    <header class="sheet-head">
+      <h2 id="menu-title">Menü</h2>
+      <button type="button" class="icon-btn round" data-close aria-label="Schliessen">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </header>
+    <div id="menu-body" class="sheet-body menu-body"></div>
   </dialog>
 
   <!-- Rückfrage (ersetzt das native confirm()) -->
-  <dialog id="confirm-dialog" class="sheet compact" aria-labelledby="confirm-title">
+  <dialog id="confirm-dialog" class="sheet compact" aria-labelledby="confirm-title" aria-describedby="confirm-text">
     <div class="sheet-body confirm">
-      <div class="confirm-icon" id="confirm-icon" aria-hidden="true"></div>
+      <div id="confirm-icon" class="confirm-icon" aria-hidden="true"></div>
       <h2 id="confirm-title"></h2>
       <p id="confirm-text"></p>
       <div class="confirm-actions">
-        <button type="button" class="btn ghost" data-close>Abbrechen</button>
-        <button type="button" class="btn danger" id="confirm-ok"></button>
+        <button type="button" class="btn btn-outline btn-sm" data-close>Abbrechen</button>
+        <button type="button" class="btn btn-danger btn-sm" id="confirm-ok"></button>
       </div>
     </div>
   </dialog>
