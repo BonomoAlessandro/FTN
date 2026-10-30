@@ -463,7 +463,7 @@ test('E2E: Kaputte und fremde Eingaben werden sauber abgewiesen', { timeout: 100
     const payloads = [undefined, null, 42, 'text', [], [1, 2], { token: 123 }, { token: {} },
       { token: tok, value: '1' }, { token: tok, value: 1e9 }, { token: tok, cardId: { x: 1 } }, { token: tok, cardId: 'rosen-99' }];
     const events = ['createRoom', 'joinRoom', 'leaveRoom', 'closeRoom', 'startGame', 'bid', 'playCard',
-      'duelPick', 'nextRound', 'restartGame', 'backToLobby'];
+      'duelPick', 'nextRound', 'restartGame', 'backToLobby', 'renamePlayer'];
     for (const ev of events) {
       for (const p of payloads) expectClean(await emitAsync(m, ev, p), `${ev} ${JSON.stringify(p)}`);
     }
@@ -482,6 +482,69 @@ test('E2E: Gleich aussehende Namen gelten als doppelt', { timeout: 10000 }, asyn
       const res = await emitAsync(ctx.connect(), 'joinRoom', { name, code: created.code });
       assert.equal(res.error, 'Dieser Name ist im Raum schon vergeben.', name);
     }
+  } finally { ctx.stop(); }
+});
+
+test('E2E: Nur Alessandro kann im Spiel die Namen der anderen ändern', { timeout: 10000 }, async () => {
+  const ctx = await startServer();
+  try {
+    const a = ctx.connect();
+    const created = await emitAsync(a, 'createRoom', { name: 'Anna' });
+    const b = ctx.connect();
+    const jb = await emitAsync(b, 'joinRoom', { name: 'alessandro', code: created.code });
+    const c = ctx.connect();
+    const jc = await emitAsync(c, 'joinRoom', { name: 'Cleo', code: created.code });
+    const room = ctx.rooms.get(created.code);
+    const [anna, ale, cleo] = room.players;
+    const rename = (playerId, name) => emitAsync(b, 'renamePlayer', { token: jb.token, playerId, name });
+
+    assert.equal((await rename(anna.pid, 'Anni')).error, 'Das Spiel hat noch nicht begonnen.');
+
+    const started = nextState(b, (st) => st.screen === 'game');
+    const othersView = nextState(c, (st) => st.screen === 'game');
+    await emitAsync(a, 'startGame', { token: created.token });
+    // Die Schreibweise zählt nicht – «alessandro» genügt
+    assert.equal((await started).canRename, true);
+    assert.equal((await othersView).canRename, false);
+
+    // Weder Mitspieler noch Host dürfen umbenennen
+    assert.equal((await emitAsync(c, 'renamePlayer', { token: jc.token, playerId: anna.pid, name: 'Anni' })).error,
+      'Nur Alessandro kann Namen ändern.');
+    assert.equal((await emitAsync(a, 'renamePlayer', { token: created.token, playerId: cleo.pid, name: 'Cle' })).error,
+      'Nur Alessandro kann Namen ändern.');
+
+    assert.equal((await rename(ale.pid, 'Ale')).error, 'Deinen eigenen Namen kannst du nicht ändern.');
+    assert.equal((await rename('p99', 'Anni')).error, 'Diesen Spieler gibt es nicht.');
+    assert.equal((await rename(anna.pid, '\u200B')).error, 'Bitte gib einen Namen ein.');
+    assert.equal((await rename(anna.pid, 'CLEO')).error, 'Dieser Name ist im Raum schon vergeben.');
+    // Niemand sonst kann so zu «Alessandro» werden
+    assert.equal((await rename(anna.pid, 'Alessandro')).error, 'Dieser Name ist im Raum schon vergeben.');
+    // Kaputte Eingaben von Alessandro selbst werden sauber abgewiesen
+    for (const bad of [{}, { playerId: {} }, { playerId: [anna.pid] }, { playerId: '__proto__' },
+      { playerId: anna.pid, name: 42 }, { playerId: anna.pid, name: { toString: 1 } }, { playerId: anna.pid, name: ['x'] }]) {
+      const res = await emitAsync(b, 'renamePlayer', { token: jb.token, ...bad });
+      assert.equal(res.ok, false, JSON.stringify(bad));
+      assert.notEqual(res.error, 'Unbekannter Fehler.', JSON.stringify(bad));
+    }
+
+    // Raum und Spiel führen den neuen Namen, alle sehen ihn sofort
+    const seen = nextState(c, (st) => st.players.some((p) => p.name === 'Anni'));
+    assert.ok((await rename(anna.pid, ' Anni ')).ok);
+    assert.equal(anna.name, 'Anni');
+    assert.equal(room.game.players.find((p) => p.id === anna.pid).name, 'Anni');
+    await seen;
+    // Nur die Schreibweise des eigenen Namens ändern geht
+    assert.ok((await rename(cleo.pid, 'CLEO')).ok);
+
+    // Nach Spielende: Wer gegangen ist, steht noch in der Rangliste – sein Name bleibt
+    // belegt und lässt sich weiterhin ändern
+    room.game._endGame();
+    assert.ok((await emitAsync(c, 'leaveRoom', { token: jc.token })).ok);
+    assert.equal((await rename(anna.pid, 'cleo')).error, 'Dieser Name ist im Raum schon vergeben.');
+    assert.ok((await rename(cleo.pid, 'Cleopatra')).ok);
+    assert.ok((await rename(anna.pid, 'Annina')).ok);
+    assert.equal(anna.name, 'Annina');
+    assert.deepEqual(room.game.ranking.map((r) => r.name).sort(), ['Annina', 'Cleopatra', 'alessandro']);
   } finally { ctx.stop(); }
 });
 

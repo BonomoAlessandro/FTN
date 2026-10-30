@@ -291,6 +291,20 @@
     </div>
   </dialog>
 
+  <!-- Namen eines Mitspielers ändern (nur für Alessandro) -->
+  <dialog id="rename-dialog" class="sheet compact" aria-labelledby="rename-title">
+    <form id="rename-form" class="sheet-body confirm" autocomplete="off">
+      <h2 id="rename-title"></h2>
+      <input id="rename-input" class="input input-light rename-input" type="text" maxlength="16" spellcheck="false" enterkeyhint="done" aria-labelledby="rename-title">
+      <!-- Fehler stehen im Fenster selbst – ein Toast läge hinter dem offenen Fenster -->
+      <p id="rename-error" class="rename-error" role="alert"></p>
+      <div class="confirm-actions">
+        <button type="button" class="btn btn-outline btn-sm" data-close>Abbrechen</button>
+        <button type="submit" class="btn btn-primary btn-sm" id="rename-ok">Ändern</button>
+      </div>
+    </form>
+  </dialog>
+
   <script src="/socket.io/socket.io.js"></script>
   <script src="cards.js"></script>
   <script src="app.js"></script>

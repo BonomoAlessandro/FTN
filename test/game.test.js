@@ -317,3 +317,13 @@ test('Verlauf: jede abgeschlossene Runde speichert Ansage und Stiche aller Spiel
     assert.deepEqual(h.map((r) => r.results.find((x) => x.playerId === p.id).bid), g.bidHistory[p.id]);
   }
 });
+
+test('Namen ändern: Spieler und Schlussrangliste werden nachgeführt', () => {
+  const g = newGame(createDeck());
+  g.renamePlayer('B', 'Bea');
+  assert.equal(g.viewFor('A').players.find((p) => p.id === 'B').name, 'Bea');
+  assert.throws(() => g.renamePlayer('X', 'Xaver'), GameError);
+  g._endGame();
+  g.renamePlayer('C', 'Cloé');
+  assert.deepEqual(g.viewFor('A').ranking.map((r) => r.name).sort(), ['Anna', 'Bea', 'Cloé']);
+});

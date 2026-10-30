@@ -268,6 +268,16 @@ class Game {
       .sort((a, b) => b.score - a.score);
   }
 
+  // ---------- Namen ----------
+
+  renamePlayer(id, name) {
+    const player = this.players.find((p) => p.id === id);
+    if (!player) throw new GameError('Diesen Spieler gibt es nicht.');
+    player.name = name;
+    const ranked = this.ranking && this.ranking.find((r) => r.playerId === id);
+    if (ranked) ranked.name = name;
+  }
+
   // ---------- Personalisierte Sicht ----------
 
   viewFor(viewerId) {

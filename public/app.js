@@ -194,6 +194,7 @@ const ICON_PATHS = {
   arrowRight: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
   plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
   logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
+  pencil: '<path d="M17 3a2.8 2.8 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5z"/><path d="m15 5 4 4"/>',
   shuffle: '<path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22"/><path d="m18 2 4 4-4 4"/><path d="M2 6h1.9c1.5 0 2.9.9 3.6 2.2"/><path d="M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8"/><path d="m18 14 4 4-4 4"/>',
 };
 
@@ -1011,14 +1012,25 @@ function gameOverDock(st, dock) {
 
 // ---------- Menü ----------
 
+let menuHtml = '';
+
 function renderMenu() {
   const st = state;
   if (!st || st.screen !== 'game') return;
-  $('menu-body').innerHTML = `<div class="menu-code"><span>Raum-Code</span><b>${esc(st.roomCode)}</b></div>` +
+  const html = `<div class="menu-code"><span>Raum-Code</span><b>${esc(st.roomCode)}</b></div>` +
+    renameListHtml(st) +
     (st.isHost
       ? '<button id="btn-close-room" type="button" class="btn btn-danger">Raum für alle schliessen</button>' +
         '<p class="hint">Das Spiel endet für alle. Alle landen wieder auf dem Startbildschirm und müssen neu beitreten.</p>'
       : '<p class="hint">Nur der Host kann den Raum schliessen. Mitten im Spiel kann niemand austreten – sonst bliebe das Spiel stehen.</p>');
+  // Nur bei Änderungen neu zeichnen: Sonst verlöre ein Knopf bei jedem Spielzug
+  // den Fokus, und ein Tipp genau dann ginge ins Leere.
+  if (html === menuHtml) return;
+  menuHtml = html;
+  $('menu-body').innerHTML = html;
+  for (const b of $('menu-body').querySelectorAll('[data-rename]')) {
+    b.addEventListener('click', () => openRename(b.dataset.rename));
+  }
   const btn = $('btn-close-room');
   if (!btn) return;
   btn.addEventListener('click', async () => {
@@ -1032,6 +1044,59 @@ function renderMenu() {
     if (yes) send('closeRoom');
   });
 }
+
+// ---------- Namen ändern (nur Alessandro) ----------
+
+let renameId = null;
+let renameGen = 0; // erhöht bei jedem Öffnen: Späte Antworten betreffen ein früheres Fenster
+
+function renameListHtml(st) {
+  if (!st.canRename) return '';
+  const others = st.players.filter((p) => p.id !== st.youId);
+  return '<section class="menu-section"><h3>Namen ändern</h3><ul class="rename-list">' +
+    others.map((p) => `<li>${avatarHtml(p.name)}<span class="name">${esc(p.name)}</span>` +
+      `<button type="button" class="btn btn-secondary btn-sm" data-rename="${esc(p.id)}" ` +
+      `aria-label="Name von ${esc(p.name)} ändern">${icon('pencil', 16)}Ändern</button></li>`).join('') +
+    '</ul></section>';
+}
+
+/** Eigenes Fenster statt Feld im Menü: Das Menü wird neu gezeichnet, sobald sich etwas ändert. */
+function openRename(pid) {
+  const p = state && state.players.find((q) => q.id === pid);
+  if (!p) return;
+  renameId = pid;
+  renameGen += 1;
+  $('rename-ok').disabled = false;
+  closeSheet($('menu-dialog'));
+  $('rename-title').textContent = `Neuer Name für ${p.name}`;
+  $('rename-error').textContent = '';
+  $('rename-input').value = p.name;
+  openSheet($('rename-dialog'));
+  $('rename-input').select();
+}
+
+$('rename-input').addEventListener('input', () => { $('rename-error').textContent = ''; });
+$('rename-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const btn = $('rename-ok');
+  if (btn.disabled) return;
+  btn.disabled = true;
+  const gen = renameGen;
+  request('renamePlayer', { token: token(), playerId: renameId, name: $('rename-input').value }, (res) => {
+    if (gen !== renameGen) {
+      if (!res.ok) toast(res.error || 'Fehler');
+      return;
+    }
+    btn.disabled = false;
+    if (!res.ok) {
+      $('rename-error').textContent = res.error || 'Fehler';
+      $('rename-input').focus();
+      return;
+    }
+    closeSheet($('rename-dialog'));
+    toast('Name geändert', 'info');
+  });
+});
 
 // ---------- Punkte & Verlauf ----------
 

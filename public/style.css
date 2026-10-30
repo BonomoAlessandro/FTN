@@ -557,6 +557,17 @@ h1, h2, h3, p { margin: 0; }
 .menu-code { display: flex; align-items: baseline; justify-content: space-between; padding: 14px; border-radius: 16px; background: var(--felt); }
 .menu-code span { font-size: 13px; font-weight: 700; color: var(--muted); }
 .menu-code b { font-family: var(--font-display); font-size: 26px; letter-spacing: .14em; color: var(--accent); }
+.menu-section { display: flex; flex-direction: column; gap: 6px; }
+.menu-section h3 { font-size: 13px; font-weight: 700; color: var(--muted); }
+.rename-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.rename-list li {
+  min-height: 56px; padding: 6px 6px 6px 12px;
+  display: flex; align-items: center; gap: 12px;
+  border-radius: 16px; background: var(--felt);
+  --avatar-size: 36px;
+}
+.rename-list .name { flex: 1; min-width: 0; font-size: 16px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rename-list .btn { width: auto; min-height: 44px; }
 
 /* Rückfrage */
 .confirm { text-align: center; padding-top: 26px; }
@@ -564,6 +575,11 @@ h1, h2, h3, p { margin: 0; }
 .confirm h2 { margin-bottom: 6px; font-family: var(--font-display); font-size: 24px; font-weight: 800; }
 .confirm p { margin-bottom: 20px; color: var(--text-2); font-size: 15px; line-height: 1.45; }
 .confirm-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* Namen ändern (baut auf der Rückfrage auf) */
+.rename-input { margin: 10px 0 20px; }
+.confirm .rename-error { margin: -10px 0 16px; color: var(--miss); font-size: 14px; font-weight: 700; }
+.confirm .rename-error:empty { display: none; }
 
 /* Spielregeln */
 .rules { display: flex; flex-direction: column; gap: 28px; padding: 20px 20px calc(32px + var(--safe-bottom)); }

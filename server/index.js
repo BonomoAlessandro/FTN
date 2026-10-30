@@ -16,6 +16,7 @@ const MAX_NAME_CHARS = 16; // sichtbare Zeichen
 const MAX_NAME_UNITS = 64; // Obergrenze in UTF-16-Einheiten
 const MAX_MARKS = 4; // Akzente pro Zeichen (gegen hoch gestapelte «Zalgo»-Namen)
 const EMPTY_ROOM_TTL_MS = 30 * 60 * 1000; // Räume, in denen alle offline sind
+const RENAMER_NAME = 'Alessandro'; // Wer so heisst, darf im Spiel die Namen der anderen ändern
 
 const graphemes = new Intl.Segmenter('de', { granularity: 'grapheme' });
 
@@ -169,10 +170,20 @@ function createApp(opts = {}) {
     socket.data.member = { room, player };
   }
 
-  function addPlayer(room, name, socket) {
-    if (room.players.some((p) => nameKey(p.name) === nameKey(name))) {
+  /** Wirft, wenn ein anderer Spieler in `players` (ausser `except`) schon gleich heisst. */
+  function requireFreeName(players, name, except = null) {
+    if (players.some((p) => p !== except && nameKey(p.name) === nameKey(name))) {
       throw new GameError('Dieser Name ist im Raum schon vergeben.');
     }
+  }
+
+  /** Das Recht hängt allein am Namen – wer «Alessandro» heisst, darf umbenennen. */
+  function canRename(player) {
+    return nameKey(player.name) === nameKey(RENAMER_NAME);
+  }
+
+  function addPlayer(room, name, socket) {
+    requireFreeName(room.players, name);
     const player = {
       token: crypto.randomBytes(16).toString('hex'),
       pid: `p${room.nextPid++}`,
@@ -256,6 +267,7 @@ function createApp(opts = {}) {
     view.screen = 'game';
     view.roomCode = room.code;
     view.isHost = viewer === host;
+    view.canRename = canRename(viewer);
     view.minPlayers = MIN_PLAYERS;
     for (const pl of view.players) {
       const rp = room.players.find((q) => q.pid === pl.id);
@@ -452,6 +464,24 @@ function createApp(opts = {}) {
       // Jedes weitere Spiel rückt den Startspieler um einen Platz weiter.
       room.startOffset = (room.startOffset + 1) % room.players.length;
       newGame(room);
+    }));
+
+    // Alessandro kann während des Spiels die Namen der anderen ändern. Weil Namen im
+    // Raum eindeutig sind, kann er niemandem sonst den Namen «Alessandro» geben.
+    socket.on('renamePlayer', gameAction((room, player, data) => {
+      requireGame(room);
+      if (!canRename(player)) throw new GameError(`Nur ${RENAMER_NAME} kann Namen ändern.`);
+      // Die Spieler des Spiels: alle im Raum und dazu, wer nach Spielende gegangen ist
+      // und noch in der Rangliste steht.
+      const players = room.game.players;
+      const target = players.find((p) => p.id === data.playerId);
+      if (!target) throw new GameError('Diesen Spieler gibt es nicht.');
+      if (target.id === player.pid) throw new GameError('Deinen eigenen Namen kannst du nicht ändern.');
+      const name = cleanName(data.name);
+      requireFreeName(players, name, target);
+      room.game.renamePlayer(target.id, name);
+      const member = room.players.find((p) => p.pid === target.id);
+      if (member) member.name = name;
     }));
 
     // Nach Spielende zurück in die Lobby, z. B. wenn zu wenige online sind:
